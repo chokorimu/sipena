@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-main: #15803D;
+    --color-secondary: #16A34A;
+    --color-text-main: #172B4D;
+    --color-text-secondary: #66758C;
+    --color-border: #DFE6DF;
+    --color-canvas: #F3F6FA;
+}
+
+@layer utilities {
+    .font-display {
+      font-size: 36px;
+      font-weight: 700;
+    }
+    .font-heading {
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .font-body {
+      font-size: 14px;
+      font-weight: 400;
+    }
+  }
