@@ -9,7 +9,8 @@
 </head>
 <body class="bg-canvas">
     <header></header>
-    <div class="flex max-h-screen">
+    <div class="flex m-4 w-screen h-screen">
+        <x-sidebar />
         @yield('content')
     </div>
     <footer></footer>
