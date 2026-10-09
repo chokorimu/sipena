@@ -1,12 +1,24 @@
-<div class="flex flex-col bg-white min-w-xs h-screen gap-2 p-6 rounded-xl border-border)">
-    <div class="flex gap-2 bg-main w-full p-3 rounded-md items-center">
-        <x-heroicon-c-home class="h-4 text-white" />
-        <p class="text-[14px] font-medium text-white">Dashboard</p>
+<aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 min-h-screen border-r border-border-light']) }}>
+    {{-- Logo & App Name --}}
+    <div class="flex items-center gap-3 px-5 py-5 border-b border-border-light">
+        <div class="flex items-center justify-center h-9 w-9 rounded-md bg-primary">
+            <span class="text-white font-bold text-body">SP</span>
+        </div>
+        <div>
+            <h2 class="font-h3 text-primary leading-none">SIPENA</h2>
+            <p class="text-small text-text-secondary">Sistem Penilaian</p>
+        </div>
     </div>
-    <div class="flex gap-2 w-full p-3 rounded-md items-center">
-        <p class="text-[14px] font-medium text-text-main">Data siswa</p>
-    </div>
-    <div class="flex gap-2 w-full p-3 rounded-md items-center">
-        <p class="text-[14px] font-medium text-text-main">Data guru</p>
-    </div>
-</div>
+
+    {{-- Navigation --}}
+    <nav class="flex-1 flex flex-col gap-1 px-3 py-4">
+        {{ $slot }}
+    </nav>
+
+    {{-- User Profile --}}
+    @if (isset($footer))
+        <div class="border-t border-border-light px-4 py-4">
+            {{ $footer }}
+        </div>
+    @endif
+</aside>

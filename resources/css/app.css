@@ -5,33 +5,214 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
-    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/*
+ * ============================================================
+ * SIPENA - Fondasi Visual (Design System Theme)
+ * ============================================================
+ * Konfigurasi tema berdasarkan panduan desain "Fondasi Visual"
+ * Font: Poppins | Grid: 4px base | Skema: Navy + Blue
+ * ============================================================
+ */
 
-    --color-main: #15803D;
-    --color-secondary: #16A34A;
+@theme {
+    /* ─── Font Family ─────────────────────────────────────── */
+    --font-sans: 'Poppins', 'Inter', 'Noto Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Dela Gothic One', 'Rubik', ui-sans-serif, system-ui, sans-serif;
+
+    /* ─── Font Size (Typography Scale) ────────────────────── */
+    --text-display: 36px;
+    --text-h1: 24px;
+    --text-h2: 20px;
+    --text-h3: 18px;
+    --text-body: 14px;
+    --text-caption: 12px;
+    --text-small: 10px;
+
+    /* ─── Line Heights ────────────────────────────────────── */
+    --leading-display: 1.2;
+    --leading-heading: 1.3;
+    --leading-body: 1.5;
+    --leading-caption: 1.4;
+
+    /* ─── Colors: Primary (Navy) ──────────────────────────── */
+    --color-primary-50: #EBF0F7;
+    --color-primary-100: #C5D3E6;
+    --color-primary-200: #9FB6D5;
+    --color-primary-300: #7999C4;
+    --color-primary-400: #537CB3;
+    --color-primary-500: #2D5FA2;
+    --color-primary-600: #1E3A5F;
+    --color-primary-700: #172E4D;
+    --color-primary-800: #10213B;
+    --color-primary-900: #091529;
+    --color-primary: #1E3A5F;
+
+    /* ─── Colors: Secondary (Blue) ────────────────────────── */
+    --color-secondary-50: #EAF2FB;
+    --color-secondary-100: #C0D9F3;
+    --color-secondary-200: #96C0EB;
+    --color-secondary-300: #6CA7E3;
+    --color-secondary-400: #4A90D9;
+    --color-secondary-500: #3478C2;
+    --color-secondary-600: #285EA0;
+    --color-secondary-700: #1D4578;
+    --color-secondary-800: #122D50;
+    --color-secondary-900: #071628;
+    --color-secondary: #4A90D9;
+
+    /* ─── Colors: Accent (Gold/Yellow) ────────────────────── */
+    --color-accent-50: #FFF8E1;
+    --color-accent-100: #FFECB3;
+    --color-accent-200: #FFE082;
+    --color-accent-300: #FFD54F;
+    --color-accent-400: #FFCA28;
+    --color-accent-500: #FFC107;
+    --color-accent-600: #FFB300;
+    --color-accent-700: #FFA000;
+    --color-accent-800: #FF8F00;
+    --color-accent-900: #FF6F00;
+    --color-accent: #FFC107;
+
+    /* ─── Colors: Semantic ─────────────────────────────────── */
+    --color-success-50: #E8F5E9;
+    --color-success-100: #C8E6C9;
+    --color-success-200: #A5D6A7;
+    --color-success-300: #81C784;
+    --color-success-400: #66BB6A;
+    --color-success-500: #28A745;
+    --color-success-600: #218838;
+    --color-success-700: #1B6D2E;
+    --color-success-800: #155724;
+    --color-success-900: #0F3D1A;
+    --color-success: #28A745;
+
+    --color-warning-50: #FFF8E1;
+    --color-warning-100: #FFECB3;
+    --color-warning-200: #FFE082;
+    --color-warning-300: #FFD54F;
+    --color-warning-400: #FFCA28;
+    --color-warning-500: #FFC107;
+    --color-warning-600: #E0A800;
+    --color-warning-700: #C69500;
+    --color-warning-800: #A67C00;
+    --color-warning-900: #7A5B00;
+    --color-warning: #FFC107;
+
+    --color-danger-50: #FDECEA;
+    --color-danger-100: #F8C9C5;
+    --color-danger-200: #F3A6A0;
+    --color-danger-300: #EE837B;
+    --color-danger-400: #E96056;
+    --color-danger-500: #DC3545;
+    --color-danger-600: #C82333;
+    --color-danger-700: #A71D2A;
+    --color-danger-800: #851721;
+    --color-danger-900: #641018;
+    --color-danger: #DC3545;
+
+    --color-info-50: #E3F2FD;
+    --color-info-100: #BBDEFB;
+    --color-info-200: #90CAF9;
+    --color-info-300: #64B5F6;
+    --color-info-400: #42A5F5;
+    --color-info-500: #17A2B8;
+    --color-info-600: #138496;
+    --color-info-700: #0F6674;
+    --color-info-800: #0B4852;
+    --color-info-900: #072A30;
+    --color-info: #17A2B8;
+
+    /* ─── Colors: Neutral (Gray Scale) ────────────────────── */
+    --color-neutral-50: #F8F9FA;
+    --color-neutral-100: #F1F3F5;
+    --color-neutral-200: #E9ECEF;
+    --color-neutral-300: #DEE2E6;
+    --color-neutral-400: #CED4DA;
+    --color-neutral-500: #ADB5BD;
+    --color-neutral-600: #6C757D;
+    --color-neutral-700: #495057;
+    --color-neutral-800: #343A40;
+    --color-neutral-900: #212529;
+
+    /* ─── Colors: Semantic Aliases ─────────────────────────── */
     --color-text-main: #172B4D;
     --color-text-secondary: #66758C;
-    --color-border: #DFE6DF;
+    --color-text-muted: #ADB5BD;
+    --color-text-inverse: #FFFFFF;
+    --color-border: #DEE2E6;
+    --color-border-light: #E9ECEF;
     --color-canvas: #F3F6FA;
+    --color-surface: #FFFFFF;
+
+    /* ─── Spacing (4px Base Grid) ──────────────────────────── */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+    /* ─── Border Radius ───────────────────────────────────── */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* ─── Shadows / Elevation ─────────────────────────────── */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+    --shadow-card: 0 2px 8px 0 rgb(0 0 0 / 0.08);
+    --shadow-dropdown: 0 4px 12px 0 rgb(0 0 0 / 0.12);
+    --shadow-modal: 0 8px 24px 0 rgb(0 0 0 / 0.16);
 }
 
+/* ─── Typography Utility Classes ──────────────────────────── */
 @layer utilities {
     .font-display {
-      font-size: 36px;
-      font-weight: 700;
+        font-family: var(--font-display);
+        font-size: var(--text-display);
+        font-weight: 700;
+        line-height: var(--leading-display);
     }
-    .font-heading {
-      font-size: 24px;
-      font-weight: 600;
+
+    .font-h1 {
+        font-size: var(--text-h1);
+        font-weight: 700;
+        line-height: var(--leading-heading);
     }
-    .font-section {
-      font-size: 18px;
-      font-weight: 600;
+
+    .font-h2 {
+        font-size: var(--text-h2);
+        font-weight: 600;
+        line-height: var(--leading-heading);
     }
+
+    .font-h3 {
+        font-size: var(--text-h3);
+        font-weight: 600;
+        line-height: var(--leading-heading);
+    }
+
     .font-body {
-      font-size: 14px;
-      font-weight: 400;
+        font-size: var(--text-body);
+        font-weight: 400;
+        line-height: var(--leading-body);
     }
-  }
+
+    .font-caption {
+        font-size: var(--text-caption);
+        font-weight: 400;
+        line-height: var(--leading-caption);
+    }
+
+    .font-small {
+        font-size: var(--text-small);
+        font-weight: 500;
+        line-height: var(--leading-caption);
+    }
+}

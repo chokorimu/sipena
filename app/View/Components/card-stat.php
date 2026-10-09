@@ -6,19 +6,28 @@ use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
-class card-stat extends Component
+class CardStat extends Component
 {
     /**
-     * Create a new component instance.
+     * @param  'up'|'down'|null  $trendDirection
      */
-    public function __construct()
+    public function __construct(
+        public string $label = '',
+        public string|int $value = 0,
+        public ?string $trend = null,
+        public ?string $trendDirection = null,
+        public ?string $trendLabel = null,
+    ) {}
+
+    public function trendColor(): string
     {
-        //
+        return match ($this->trendDirection) {
+            'up' => 'text-success',
+            'down' => 'text-danger',
+            default => 'text-text-secondary',
+        };
     }
 
-    /**
-     * Get the view / contents that represent the component.
-     */
     public function render(): View|Closure|string
     {
         return view('components.card-stat');
