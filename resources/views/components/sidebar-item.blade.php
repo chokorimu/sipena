@@ -1,14 +1,14 @@
 @php
-    $isActive = $component->isActive();
+    $isActive = $isActiveState;
     $activeClasses = $isActive
-        ? 'bg-primary text-white'
-        : 'text-text-main hover:bg-neutral-100';
-    $iconColor = $isActive ? 'text-white' : 'text-text-secondary';
+        ? 'bg-[#ecfdf3] text-[#15803d] font-medium'
+        : 'text-[#1a2233] hover:bg-[#f3f6fa] font-normal';
+    $iconColor = $isActive ? 'text-[#15803d]' : 'text-[#66758c]';
 @endphp
 
 <a
     href="{{ $route !== '#' ? route($route) : '#' }}"
-    {{ $attributes->merge(['class' => "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-body font-medium transition-colors duration-150 {$activeClasses}"]) }}
+    {{ $attributes->merge(['class' => "flex items-center gap-[10px] w-full p-3 rounded-md text-[13px] leading-[1.45] transition-colors duration-150 {$activeClasses}"]) }}
 >
     @if ($icon)
         <span class="shrink-0 {{ $iconColor }}">

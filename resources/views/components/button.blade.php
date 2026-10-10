@@ -1,7 +1,7 @@
 @php
-    $baseClasses = 'inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 cursor-pointer';
-    $disabledClasses = $disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : '';
-    $classes = "{$baseClasses} {$component->variantClasses()} {$component->sizeClasses()} {$disabledClasses}";
+    $baseClasses = 'inline-flex items-center justify-center font-semibold transition-colors duration-150 focus:outline-none cursor-pointer';
+    $disabledClasses = $disabled ? 'bg-[#e9edf3] border-[#e9edf3] text-[#96a2b4] cursor-not-allowed pointer-events-none' : '';
+    $classes = "{$baseClasses} {$sizeClass} " . ($disabled ? $disabledClasses : $variantClass);
 @endphp
 
 @if ($href)

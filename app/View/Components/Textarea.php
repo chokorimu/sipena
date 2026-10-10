@@ -26,6 +26,8 @@ class Textarea extends Component
 
     public function render(): View|Closure|string
     {
-        return view('components.textarea');
+        return view('components.textarea', [
+            'hasErrorState' => $this->hasError(),
+        ]);
     }
 }

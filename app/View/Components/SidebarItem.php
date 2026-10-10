@@ -30,6 +30,8 @@ class SidebarItem extends Component
 
     public function render(): View|Closure|string
     {
-        return view('components.sidebar-item');
+        return view('components.sidebar-item', [
+            'isActiveState' => $this->isActive(),
+        ]);
     }
 }

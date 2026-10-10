@@ -20,28 +20,31 @@ class Badge extends Component
     public function variantClasses(): string
     {
         return match ($this->variant) {
-            'primary' => 'bg-primary-50 text-primary-700',
-            'secondary' => 'bg-secondary-50 text-secondary-700',
-            'success' => 'bg-success-50 text-success-700',
-            'warning' => 'bg-warning-50 text-warning-700',
-            'danger' => 'bg-danger-50 text-danger-700',
-            'info' => 'bg-info-50 text-info-700',
-            'neutral' => 'bg-neutral-100 text-neutral-700',
-            default => 'bg-primary-50 text-primary-700',
+            'primary' => 'bg-[#ecfdf3] text-[#15803d]',
+            'secondary' => 'bg-[#f3f6fa] text-[#66758c]',
+            'success' => 'bg-[#ecfdf3] text-[#15803d]',
+            'warning' => 'bg-[#fff5df] text-[#a56708]',
+            'danger' => 'bg-[#fff0f0] text-[#c13e45]',
+            'info' => 'bg-[#f0f4ff] text-[#3b5998]',
+            'neutral' => 'bg-[#f3f6fa] text-[#66758c]',
+            default => 'bg-[#ecfdf3] text-[#15803d]',
         };
     }
 
     public function sizeClasses(): string
     {
         return match ($this->size) {
-            'sm' => 'px-1.5 py-0.5 text-small',
-            'md' => 'px-2 py-0.5 text-caption',
-            default => 'px-2 py-0.5 text-caption',
+            'sm' => 'px-2 py-0.5 text-[10px]',
+            'md' => 'px-[10px] py-1 text-[11px]',
+            default => 'px-[10px] py-1 text-[11px]',
         };
     }
 
     public function render(): View|Closure|string
     {
-        return view('components.badge');
+        return view('components.badge', [
+            'variantClass' => $this->variantClasses(),
+            'sizeClass' => $this->sizeClasses(),
+        ]);
     }
 }

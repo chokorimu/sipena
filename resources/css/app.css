@@ -10,13 +10,13 @@
  * SIPENA - Fondasi Visual (Design System Theme)
  * ============================================================
  * Konfigurasi tema berdasarkan panduan desain "Fondasi Visual"
- * Font: Poppins | Grid: 4px base | Skema: Navy + Blue
+ * Font: Inter | Grid: 4px base | Skema: Green + Navy
  * ============================================================
  */
 
 @theme {
     /* ─── Font Family ─────────────────────────────────────── */
-    --font-sans: 'Poppins', 'Inter', 'Noto Sans', ui-sans-serif, system-ui, sans-serif,
+    --font-sans: 'Inter', 'Noto Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --font-display: 'Dela Gothic One', 'Rubik', ui-sans-serif, system-ui, sans-serif;
 

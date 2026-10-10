@@ -3,14 +3,14 @@
         type="button"
         role="switch"
         aria-checked="{{ $checked ? 'true' : 'false' }}"
-        {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 ' . ($checked ? 'bg-primary' : 'bg-neutral-300')]) }}
+        {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#15803d]/30 focus:ring-offset-2 ' . ($checked ? 'bg-[#15803d]' : 'bg-[#dfe6ef]')]) }}
         @disabled($disabled)
         onclick="
             const input = this.nextElementSibling;
             const isChecked = this.getAttribute('aria-checked') === 'true';
             this.setAttribute('aria-checked', !isChecked);
-            this.classList.toggle('bg-primary', !isChecked);
-            this.classList.toggle('bg-neutral-300', isChecked);
+            this.classList.toggle('bg-[#15803d]', !isChecked);
+            this.classList.toggle('bg-[#dfe6ef]', isChecked);
             this.querySelector('span').classList.toggle('translate-x-5', !isChecked);
             this.querySelector('span').classList.toggle('translate-x-0', isChecked);
             input.value = !isChecked ? '1' : '0';
@@ -23,6 +23,6 @@
     </button>
     <input type="hidden" name="{{ $name }}" value="{{ $checked ? '1' : '0' }}" />
     @if ($label)
-        <span class="text-body text-text-main select-none">{{ $label }}</span>
+        <span class="text-[13px] leading-[1.45] text-[#1a2233] select-none">{{ $label }}</span>
     @endif
 </label>

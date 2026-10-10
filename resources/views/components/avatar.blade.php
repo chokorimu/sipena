@@ -2,10 +2,10 @@
     <img
         src="{{ $src }}"
         alt="{{ $name }}"
-        {{ $attributes->merge(['class' => "inline-block rounded-full object-cover {$component->sizeClasses()}"]) }}
+        {{ $attributes->merge(['class' => "inline-block rounded-full object-cover {$sizeClass}"]) }}
     />
 @else
-    <span {{ $attributes->merge(['class' => "inline-flex items-center justify-center rounded-full bg-primary-100 text-primary-700 font-semibold {$component->sizeClasses()}"]) }}>
-        {{ $component->initials() }}
+    <span {{ $attributes->merge(['class' => "inline-flex items-center justify-center rounded-full bg-[#ecfdf3] text-[#15803d] font-semibold {$sizeClass}"]) }}>
+        {{ $initialsText }}
     </span>
 @endif

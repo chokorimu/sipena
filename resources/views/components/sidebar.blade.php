@@ -1,23 +1,37 @@
-<aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 min-h-screen border-r border-border-light']) }}>
+<aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 min-h-screen border-r border-[#dfe6ef]']) }}>
     {{-- Logo & App Name --}}
-    <div class="flex items-center gap-3 px-5 py-5 border-b border-border-light">
-        <div class="flex items-center justify-center h-9 w-9 rounded-md bg-primary">
-            <span class="text-white font-bold text-body">SP</span>
+    <div class="flex items-center gap-2 px-5 py-5 border-b border-[#dfe6ef]">
+        <div class="flex items-center justify-center h-10 w-10 rounded-md bg-[#15803d] shrink-0">
+            <x-heroicon-s-academic-cap class="h-5 w-5 text-white" />
         </div>
-        <div>
-            <h2 class="font-h3 text-primary leading-none">SIPENA</h2>
-            <p class="text-small text-text-secondary">Sistem Penilaian</p>
+        <div class="flex flex-col overflow-hidden">
+            <span class="text-[11px] leading-[1.6] text-[#66758c]">MTs Negeri Ambon</span>
+            <span class="text-[13px] font-bold leading-[1.45] text-[#1a2233]">SiPena</span>
         </div>
     </div>
 
     {{-- Navigation --}}
-    <nav class="flex-1 flex flex-col gap-1 px-3 py-4">
+    <nav class="flex-1 flex flex-col gap-1 px-3 py-4 overflow-y-auto">
+        {{-- Menu Group Label --}}
+        @if (isset($groupLabel))
+            <p class="px-3 pb-2 text-[10px] font-semibold text-[#96a2b4] uppercase tracking-wider">
+                {{ $groupLabel }}
+            </p>
+        @endif
+
         {{ $slot }}
     </nav>
 
+    {{-- Tahun Ajaran --}}
+    @if (isset($tahunAjaran))
+        <div class="mx-3 mb-3 px-3 py-2.5 bg-[#f3f6fa] rounded-[8px]">
+            {{ $tahunAjaran }}
+        </div>
+    @endif
+
     {{-- User Profile --}}
     @if (isset($footer))
-        <div class="border-t border-border-light px-4 py-4">
+        <div class="border-t border-[#dfe6ef] px-4 py-4">
             {{ $footer }}
         </div>
     @endif

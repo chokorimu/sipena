@@ -9,7 +9,7 @@ use Illuminate\View\Component;
 class Avatar extends Component
 {
     /**
-     * @param  'sm'|'md'|'lg'  $size
+     * @param  'xs'|'sm'|'md'|'lg'  $size
      */
     public function __construct(
         public string $name = '',
@@ -31,15 +31,19 @@ class Avatar extends Component
     public function sizeClasses(): string
     {
         return match ($this->size) {
-            'sm' => 'h-8 w-8 text-small',
-            'md' => 'h-10 w-10 text-caption',
-            'lg' => 'h-12 w-12 text-body',
-            default => 'h-10 w-10 text-caption',
+            'xs' => 'h-6 w-6 text-[10px]',
+            'sm' => 'h-8 w-8 text-[12px]',
+            'md' => 'h-10 w-10 text-[12px]',
+            'lg' => 'h-12 w-12 text-[13px]',
+            default => 'h-10 w-10 text-[12px]',
         };
     }
 
     public function render(): View|Closure|string
     {
-        return view('components.avatar');
+        return view('components.avatar', [
+            'sizeClass' => $this->sizeClasses(),
+            'initialsText' => $this->initials(),
+        ]);
     }
 }

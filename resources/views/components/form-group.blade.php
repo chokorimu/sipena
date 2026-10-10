@@ -6,9 +6,9 @@
     {{ $slot }}
 
     @if ($error)
-        <p class="mt-1 text-caption text-danger">{{ $error }}</p>
+        <p class="mt-1 text-[11px] leading-[1.6] text-[#c13e45]">{{ $error }}</p>
     @elseif ($helper)
-        <p class="mt-1 text-caption text-text-secondary">{{ $helper }}</p>
+        <p class="mt-1 text-[11px] leading-[1.6] text-[#66758c]">{{ $helper }}</p>
     @endif
 
     @if ($for)

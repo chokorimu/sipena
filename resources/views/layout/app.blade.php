@@ -7,7 +7,7 @@
     <title>@yield('title', 'SIPENA')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-canvas font-sans text-text-main antialiased">
+<body class="bg-[#f3f6fa] font-sans text-[#1a2233] antialiased">
     <div class="flex min-h-screen">
         {{-- Sidebar --}}
         <x-sidebar>
@@ -46,8 +46,8 @@
                 <div class="flex items-center gap-3">
                     <x-avatar name="Admin SIPENA" size="sm" />
                     <div class="flex-1 min-w-0">
-                        <p class="text-body font-medium text-text-main truncate">Admin</p>
-                        <p class="text-caption text-text-secondary truncate">Administrator</p>
+                        <p class="text-[13px] font-medium text-[#1a2233] truncate">Admin</p>
+                        <p class="text-[11px] text-[#66758c] truncate">Administrator</p>
                     </div>
                 </div>
             </x-slot:footer>

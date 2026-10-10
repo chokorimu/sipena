@@ -1,9 +1,9 @@
 @php
-    $textareaClasses = 'block w-full rounded-md border bg-white px-3 py-2 text-body text-text-main placeholder:text-text-muted transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 resize-y disabled:opacity-50 disabled:cursor-not-allowed';
-    $borderClass = $component->hasError() ? 'border-danger focus:border-danger focus:ring-danger-200' : 'border-border focus:border-secondary focus:ring-secondary-200';
+    $textareaClasses = 'block w-full rounded-[8px] border bg-white p-3 text-[13px] leading-[1.45] text-[#1a2233] placeholder:text-[#96a2b4] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 resize-y disabled:bg-[#e9edf3] disabled:text-[#96a2b4] disabled:cursor-not-allowed';
+    $borderClass = $hasErrorState ? 'border-[#c13e45] focus:border-[#c13e45] focus:ring-[#c13e45]/20' : 'border-[#dfe6ef] focus:border-[#15803d] focus:ring-[#15803d]/20';
 @endphp
 
-<div>
+<div class="flex flex-col gap-[7px]">
     @if ($label)
         <x-form-label :for="$name" :required="$required">{{ $label }}</x-form-label>
     @endif
@@ -18,8 +18,8 @@
         @disabled($disabled)
     >{{ old($name, $value) }}</textarea>
 
-    @if ($helper && !$component->hasError())
-        <p class="mt-1 text-caption text-text-secondary">{{ $helper }}</p>
+    @if ($helper && !$hasErrorState)
+        <p class="text-[11px] leading-[1.6] text-[#66758c]">{{ $helper }}</p>
     @endif
 
     <x-form-error :name="$name" />

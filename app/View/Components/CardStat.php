@@ -22,14 +22,16 @@ class CardStat extends Component
     public function trendColor(): string
     {
         return match ($this->trendDirection) {
-            'up' => 'text-success',
-            'down' => 'text-danger',
-            default => 'text-text-secondary',
+            'up' => 'text-[#15803d]',
+            'down' => 'text-[#c13e45]',
+            default => 'text-[#66758c]',
         };
     }
 
     public function render(): View|Closure|string
     {
-        return view('components.card-stat');
+        return view('components.card-stat', [
+            'trendColorClass' => $this->trendColor(),
+        ]);
     }
 }
