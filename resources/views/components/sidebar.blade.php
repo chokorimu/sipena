@@ -1,4 +1,4 @@
-<aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 min-h-screen border-r border-[#dfe6ef]']) }}>
+<aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 shrink-0 rounded-[12px] border border-[#dfe6ef] shadow-sm sticky top-4 max-h-[calc(100vh-2rem)]']) }}>
     {{-- Logo & App Name --}}
     <div class="flex items-center gap-2 px-5 py-5 border-b border-[#dfe6ef]">
         <div class="flex items-center justify-center h-10 w-10 rounded-md bg-[#15803d] shrink-0">
@@ -31,7 +31,7 @@
 
     {{-- User Profile --}}
     @if (isset($footer))
-        <div class="border-t border-[#dfe6ef] px-4 py-4">
+        <div class="border-t border-[#dfe6ef] px-4 py-4 rounded-b-[12px]">
             {{ $footer }}
         </div>
     @endif

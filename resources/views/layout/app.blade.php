@@ -8,15 +8,15 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#f3f6fa] font-sans text-[#1a2233] antialiased">
-    <div class="flex min-h-screen">
+    <div class="flex min-h-screen p-4 gap-4">
         {{-- Sidebar --}}
         <x-sidebar>
-            <x-sidebar-item label="Dashboard" route="#" :active="request()->is('/')">
+            <x-sidebar-item label="Dashboard" route="dashboard" :active="request()->is('/')">
                 <x-slot:icon>
                     <x-heroicon-m-home class="h-5 w-5" />
                 </x-slot:icon>
             </x-sidebar-item>
-            <x-sidebar-item label="Data Siswa" route="#">
+            <x-sidebar-item label="Data Siswa" route="data-siswa" :active="request()->is('data-siswa')">
                 <x-slot:icon>
                     <x-heroicon-m-user-group class="h-5 w-5" />
                 </x-slot:icon>
@@ -26,17 +26,17 @@
                     <x-heroicon-m-user class="h-5 w-5" />
                 </x-slot:icon>
             </x-sidebar-item>
-            <x-sidebar-item label="Input Nilai" route="#">
+            <x-sidebar-item label="Input Nilai" route="input-nilai" :active="request()->is('input-nilai')">
                 <x-slot:icon>
                     <x-heroicon-m-pencil class="h-5 w-5" />
                 </x-slot:icon>
             </x-sidebar-item>
-            <x-sidebar-item label="Rekap Nilai" route="#">
+            <x-sidebar-item label="Rekap Nilai" route="rekap-nilai" :active="request()->is('rekap-nilai')">
                 <x-slot:icon>
                     <x-heroicon-m-table-cells class="h-5 w-5" />
                 </x-slot:icon>
             </x-sidebar-item>
-            <x-sidebar-item label="Laporan" route="#">
+            <x-sidebar-item label="Laporan" route="laporan" :active="request()->is('laporan')">
                 <x-slot:icon>
                     <x-heroicon-m-document-chart-bar class="h-5 w-5" />
                 </x-slot:icon>
@@ -54,9 +54,9 @@
         </x-sidebar>
 
         {{-- Main Content --}}
-        <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+        <div class="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
             @yield('topbar')
-            <main class="flex-1 overflow-y-auto p-6">
+            <main class="flex-1 overflow-y-auto">
                 @yield('content')
             </main>
         </div>
