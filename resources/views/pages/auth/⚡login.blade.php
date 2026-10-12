@@ -48,19 +48,12 @@ class extends Component
         </div>
 
         {{-- Pemisah --}}
-        {{-- <div class="h-px w-full bg-[#dfe6ef]"></div> --}}
 
         {{-- Pengantar Login --}}
         <div class="flex flex-col gap-2 w-full">
-            {{-- <p class="text-[11px] font-semibold leading-[1.45] text-[#66758c] tracking-wide uppercase">
-                Akses Administrator
-            </p> --}}
             <h1 class="text-[28px] font-bold leading-[1.3] text-[#15803d]">
                 Masuk ke SiPena
             </h1>
-            {{-- <p class="text-[13px] font-normal leading-[1.6] text-[#66758c]">
-                Gunakan akun administrator untuk mengelola data akademik dan penilaian MTs Negeri Ambon.
-            </p> --}}
         </div>
 
         {{-- Formulir Login --}}
