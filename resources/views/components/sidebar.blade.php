@@ -1,8 +1,8 @@
 <aside {{ $attributes->merge(['class' => 'flex flex-col bg-white w-64 shrink-0 rounded-[12px] border border-[#dfe6ef] shadow-sm sticky top-4 max-h-[calc(100vh-2rem)]']) }}>
     {{-- Logo & App Name --}}
     <div class="flex items-center gap-2 px-5 py-5 border-b border-[#dfe6ef]">
-        <div class="flex items-center justify-center h-10 w-10 rounded-md bg-[#15803d] shrink-0">
-            <x-heroicon-s-academic-cap class="h-5 w-5 text-white" />
+        <div class="flex items-center justify-center h-10 w-10 rounded-md shrink-0">
+            <img src="{{ asset('images/logo.png') }}" alt="">
         </div>
         <div class="flex flex-col overflow-hidden">
             <span class="text-[11px] leading-[1.6] text-[#66758c]">MTs Negeri Ambon</span>

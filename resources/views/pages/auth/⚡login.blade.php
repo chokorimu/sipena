@@ -120,7 +120,7 @@ class extends Component
         </form>
 
         {{-- Bantuan Akses --}}
-        <div class="w-full flex gap-3 items-start bg-[#ecfdf3] rounded-[8px] p-4">
+        {{-- <div class="w-full flex gap-3 items-start bg-[#ecfdf3] rounded-[8px] p-4">
             <span class="shrink-0 text-[#15803d]">
                 <x-heroicon-m-question-mark-circle class="h-5 w-5" />
             </span>
@@ -132,7 +132,7 @@ class extends Component
                     Hubungi administrator sekolah jika Anda belum memiliki akun atau mengalami kendala masuk.
                 </p>
             </div>
-        </div>
+        </div> --}}
     </div>
 
     {{-- Identitas Layanan --}}
