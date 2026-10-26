@@ -22,7 +22,7 @@
                     <x-heroicon-m-user-group class="h-5 w-5" />
                 </x-slot:icon>
             </x-sidebar-item>
-            <x-sidebar-item label="Data Guru" route="#">
+            <x-sidebar-item label="Data Guru" route="data-guru" :active="request()->is('data-guru')">
                 <x-slot:icon>
                     <x-heroicon-m-user class="h-5 w-5" />
                 </x-slot:icon>

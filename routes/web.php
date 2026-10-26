@@ -23,6 +23,10 @@ Route::middleware('auth')->group(function (): void {
         return view('data-siswa');
     })->name('data-siswa');
 
+    Route::get('/data-guru', function () {
+        return view('data-guru');
+    })->name('data-guru');
+
     Route::get('/input-nilai', function () {
         return view('input-nilai');
     })->name('input-nilai');
