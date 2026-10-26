@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 #[Fillable(['siswa_id', 'mapel_id', 'tahun_id', 'formatif', 'sumatif', 'nilai_akhir', 'status_kelulusan'])]
 class Nilai extends Model
@@ -67,6 +68,40 @@ class Nilai extends Model
             (float) $this->nilai_akhir >= 60 => 'D',
             default => 'E',
         };
+    }
+
+    /**
+     * Peringkat siswa berdasarkan nilai akhir (standard competition: 1, 2, 2, 4).
+     * Siswa tanpa nilai akhir tidak diberi peringkat.
+     *
+     * @param  Collection<int, Nilai>  $nilai  koleksi nilai ter-key oleh siswa_id
+     * @return array<int, int> map siswa_id => peringkat
+     */
+    public static function hitungRanking(Collection $nilai): array
+    {
+        $urut = $nilai
+            ->filter(fn (Nilai $item): bool => $item->nilai_akhir !== null)
+            ->sortByDesc(fn (Nilai $item): float => (float) $item->nilai_akhir);
+
+        $rankings = [];
+        $peringkat = 0;
+        $peringkatSebelumnya = 0;
+        $nilaiSebelumnya = null;
+
+        foreach ($urut as $siswaId => $item) {
+            $peringkat++;
+            $nilaiAkhir = (float) $item->nilai_akhir;
+
+            if ($nilaiSebelumnya !== null && $nilaiAkhir === $nilaiSebelumnya) {
+                $rankings[(int) $siswaId] = $peringkatSebelumnya;
+            } else {
+                $rankings[(int) $siswaId] = $peringkat;
+                $peringkatSebelumnya = $peringkat;
+                $nilaiSebelumnya = $nilaiAkhir;
+            }
+        }
+
+        return $rankings;
     }
 
     /**

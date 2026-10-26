@@ -131,6 +131,17 @@ new class extends Component
             'terendah' => $nilaiAkhir->isNotEmpty() ? round($nilaiAkhir->min(), 1) : null,
         ];
     }
+
+    /**
+     * Peringkat siswa di kelas untuk mapel & tahun terpilih.
+     *
+     * @return array<int, int>  map siswa_id => peringkat
+     */
+    #[Computed]
+    public function rankings(): array
+    {
+        return Nilai::hitungRanking($this->nilaiRekap);
+    }
 };
 ?>
 
@@ -212,6 +223,7 @@ new class extends Component
                 <thead>
                     <tr class="border-b border-[#dfe6ef] bg-[#f8f9fb]">
                         <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">No</th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 100px">Peringkat</th>
                         <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Nama Siswa</th>
                         <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 110px">NIS</th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">Formatif</th>
@@ -226,6 +238,13 @@ new class extends Component
                         @php
                             $nilai = $this->nilaiRekap->get($siswa->id);
                             $predikat = $nilai?->predikat();
+                            $peringkat = $this->rankings[$siswa->id] ?? null;
+                            $peringkatColors = match ($peringkat) {
+                                1 => 'bg-[#fff5df] text-[#a56708]',
+                                2 => 'bg-[#f3f6fa] text-[#66758c]',
+                                3 => 'bg-[#fff0f0] text-[#c13e45]',
+                                default => '',
+                            };
                             $predikatColors = match ($predikat) {
                                 'A' => 'bg-[#ecfdf3] text-[#15803d]',
                                 'B' => 'bg-[#ecfdf3] text-[#15803d]',
@@ -241,6 +260,18 @@ new class extends Component
                         @endphp
                         <tr class="{{ $index % 2 === 1 ? 'bg-[#f8f9fb]/50' : 'bg-white' }} hover:bg-[#ecfdf3]/30 transition-colors duration-100">
                             <td class="px-5 py-3 text-[#1a2233]">{{ $this->siswaList->firstItem() + $index }}</td>
+                            <td class="px-5 py-3 text-center">
+                                @if ($peringkat !== null && $peringkat <= 3)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full {{ $peringkatColors }}">
+                                        <x-heroicon-m-trophy class="h-3 w-3" />
+                                        {{ $peringkat }}
+                                    </span>
+                                @elseif ($peringkat !== null)
+                                    <span class="text-[13px] font-medium text-[#1a2233]">{{ $peringkat }}</span>
+                                @else
+                                    <span class="text-[13px] text-[#96a2b4]">-</span>
+                                @endif
+                            </td>
                             <td class="px-5 py-3 text-[#1a2233] font-medium">{{ $siswa->nama }}</td>
                             <td class="px-5 py-3 text-[#66758c]">{{ $siswa->nisn }}</td>
                             <td class="px-5 py-3 text-center text-[#1a2233]">{{ $nilai?->formatif !== null ? number_format((float) $nilai->formatif, 1) : '-' }}</td>
@@ -269,7 +300,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
+                            <td colspan="9" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
                                 Tidak ada siswa di kelas ini untuk tahun ajaran terpilih.
                             </td>
                         </tr>

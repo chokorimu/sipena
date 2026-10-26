@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\RekapExportController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/input-nilai', function () {
         return view('input-nilai');
     })->name('input-nilai');
+
+    Route::get('/rekap-nilai/export', [RekapExportController::class, 'export'])->name('rekap-nilai.export');
 
     Route::get('/rekap-nilai', function () {
         return view('rekap-nilai');

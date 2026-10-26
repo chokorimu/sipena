@@ -17,7 +17,7 @@
         <div class="flex items-center justify-between">
             <h2 class="text-[20px] font-bold leading-[1.3] text-[#1a2233]">Rekap Nilai Siswa</h2>
             <div class="flex items-center gap-3">
-                <x-button variant="primary" size="md">
+                <x-button variant="primary" size="md" :href="route('rekap-nilai.export', request()->query())">
                     <x-heroicon-m-arrow-down-tray class="h-4 w-4 -ml-0.5" />
                     Export Excel
                 </x-button>

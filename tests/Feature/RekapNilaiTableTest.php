@@ -172,4 +172,62 @@ class RekapNilaiTableTest extends TestCase
 
         $this->assertNull($nilai->predikat());
     }
+
+    public function test_menampilkan_peringkat_siswa_berdasarkan_nilai_akhir(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $juara = Siswa::factory()->create(['nama' => 'Siti Nurhaliza']);
+        $runnerUp = Siswa::factory()->create(['nama' => 'Budi Santoso']);
+        $juara->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $runnerUp->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $juara->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 100,
+            'sumatif' => 100,
+        ]);
+
+        Nilai::create([
+            'siswa_id' => $runnerUp->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 50,
+            'sumatif' => 50,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            ->assertSee('Peringkat')
+            ->assertSee('Siti Nurhaliza')
+            ->assertSee('Budi Santoso');
+    }
+
+    public function test_hitung_ranking_dengan_nilai_seri(): void
+    {
+        $nilai = collect([90.0, 80.0, 80.0, 70.0])->mapWithKeys(fn (float $nilaiAkhir, int $index): array => [
+            $index + 1 => tap(new Nilai, function (Nilai $item) use ($nilaiAkhir): void {
+                $item->nilai_akhir = $nilaiAkhir;
+            }),
+        ]);
+
+        // standard competition: 1, 2, 2, 4
+        $this->assertSame([1 => 1, 2 => 2, 3 => 2, 4 => 4], Nilai::hitungRanking($nilai));
+    }
+
+    public function test_hitung_ranking_mengabaikan_siswa_tanpa_nilai(): void
+    {
+        $nilai = collect([
+            1 => tap(new Nilai, function (Nilai $item): void {
+                $item->nilai_akhir = 90.0;
+            }),
+            2 => new Nilai,
+        ]);
+
+        $this->assertSame([1 => 1], Nilai::hitungRanking($nilai));
+    }
 }
