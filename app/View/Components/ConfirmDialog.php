@@ -12,6 +12,7 @@ class ConfirmDialog extends Component
      * @param  'danger'|'warning'|'info'  $variant  Variant menentukan warna icon dan tombol konfirmasi
      * @param  string  $confirmLabel  Label tombol konfirmasi
      * @param  string  $cancelLabel  Label tombol batal
+     * @param  string|null  $onConfirm  Nama aksi Livewire untuk tombol konfirmasi
      */
     public function __construct(
         public string $title = 'Konfirmasi',
@@ -19,6 +20,7 @@ class ConfirmDialog extends Component
         public string $variant = 'danger',
         public string $confirmLabel = 'Ya, Lanjutkan',
         public string $cancelLabel = 'Batal',
+        public ?string $onConfirm = null,
     ) {}
 
     public function iconBgClasses(): string

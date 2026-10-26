@@ -2,8 +2,8 @@
     x-data="{ open: false }"
     x-show="open"
     x-cloak
-    x-on:open-confirm.window="if ($event.detail === $el.id) open = true"
-    x-on:close-confirm.window="if ($event.detail === $el.id) open = false"
+    x-on:open-confirm.window="const confirmId = typeof $event.detail === 'string' ? $event.detail : ($event.detail?.id ?? $event.detail?.name ?? $event.detail?.[0]); if (confirmId === $el.id) open = true"
+    x-on:close-confirm.window="const confirmId = typeof $event.detail === 'string' ? $event.detail : ($event.detail?.id ?? $event.detail?.name ?? $event.detail?.[0]); if (confirmId === $el.id) open = false"
     x-on:keydown.escape.window="open = false"
     class="fixed inset-0 z-50 overflow-y-auto"
     {{ $attributes }}
@@ -78,12 +78,24 @@
                     {{ $cancelLabel }}
                 </x-button>
 
-                <x-button
-                    :variant="$confirmVariant"
-                    size="md"
-                >
-                    {{ $confirmLabel }}
-                </x-button>
+                @if ($onConfirm)
+                    <x-button
+                        :variant="$confirmVariant"
+                        size="md"
+                        wire:click="{{ $onConfirm }}"
+                        wire:loading.attr="disabled"
+                        wire:target="{{ $onConfirm }}"
+                    >
+                        {{ $confirmLabel }}
+                    </x-button>
+                @else
+                    <x-button
+                        :variant="$confirmVariant"
+                        size="md"
+                    >
+                        {{ $confirmLabel }}
+                    </x-button>
+                @endif
             </div>
         </div>
     </div>

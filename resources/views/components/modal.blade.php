@@ -3,8 +3,8 @@
     x-data="{ open: false }"
     x-show="open"
     x-cloak
-    x-on:open-modal.window="if ($event.detail === $el.id) open = true"
-    x-on:close-modal.window="if ($event.detail === $el.id) open = false"
+    x-on:open-modal.window="const modalId = typeof $event.detail === 'string' ? $event.detail : ($event.detail?.id ?? $event.detail?.name ?? $event.detail?.[0]); if (modalId === $el.id) open = true"
+    x-on:close-modal.window="const modalId = typeof $event.detail === 'string' ? $event.detail : ($event.detail?.id ?? $event.detail?.name ?? $event.detail?.[0]); if (modalId === $el.id) open = false"
     x-on:keydown.escape.window="open = false"
     class="fixed inset-0 z-50 overflow-y-auto"
     {{ $attributes }}
