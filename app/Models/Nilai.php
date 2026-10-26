@@ -52,6 +52,24 @@ class Nilai extends Model
     }
 
     /**
+     * Predikat huruf standar berdasarkan nilai akhir (untuk tampilan rekap/laporan).
+     */
+    public function predikat(): ?string
+    {
+        if ($this->nilai_akhir === null) {
+            return null;
+        }
+
+        return match (true) {
+            (float) $this->nilai_akhir >= 90 => 'A',
+            (float) $this->nilai_akhir >= 80 => 'B',
+            (float) $this->nilai_akhir >= 70 => 'C',
+            (float) $this->nilai_akhir >= 60 => 'D',
+            default => 'E',
+        };
+    }
+
+    /**
      * @return BelongsTo<Siswa, $this>
      */
     public function siswa(): BelongsTo

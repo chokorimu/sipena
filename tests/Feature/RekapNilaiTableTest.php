@@ -1,0 +1,175 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Kelas;
+use App\Models\MataPelajaran;
+use App\Models\Nilai;
+use App\Models\Siswa;
+use App\Models\TahunAjaran;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+class RekapNilaiTableTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /**
+     * @return array{0: TahunAjaran, 1: Kelas, 2: MataPelajaran, 3: Siswa}
+     */
+    private function siapkanData(): array
+    {
+        $tahun = TahunAjaran::factory()->create(['tahun_ajaran' => '2024/2025', 'semester' => 'ganjil']);
+        $kelas = Kelas::factory()->create(['nama_kelas' => 'VII-A']);
+        $mapel = MataPelajaran::factory()->create(['nama_mapel' => 'Matematika']);
+        $siswa = Siswa::factory()->create(['nama' => 'Ahmad Fauzi']);
+
+        $siswa->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        return [$tahun, $kelas, $mapel, $siswa];
+    }
+
+    public function test_menampilkan_rekap_nilai_siswa(): void
+    {
+        [$tahun, $kelas, $mapel, $siswa] = $this->siapkanData();
+
+        Nilai::create([
+            'siswa_id' => $siswa->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 80,
+            'sumatif' => 90,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            ->assertSee('Ahmad Fauzi')
+            ->assertSee($siswa->nisn)
+            // 0,7 x 80 + 0,3 x 90 = 83
+            ->assertSee('83.0')
+            ->assertSee('Lulus');
+    }
+
+    public function test_statistik_dihitung_dari_seluruh_siswa(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswaTinggi = Siswa::factory()->create(['nama' => 'Siti Nurhaliza']);
+        $siswaRendah = Siswa::factory()->create(['nama' => 'Budi Santoso']);
+        $siswaTinggi->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $siswaRendah->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $siswaTinggi->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 100,
+            'sumatif' => 100,
+        ]);
+
+        Nilai::create([
+            'siswa_id' => $siswaRendah->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 50,
+            'sumatif' => 50,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            // rata-rata (100 + 50) / 2 = 75.0 — hanya muncul di stat card
+            ->assertSee('75.0')
+            ->assertSee('100.0')
+            ->assertSee('50.0');
+    }
+
+    public function test_filter_mapel_hanya_menampilkan_nilai_mapel_terpilih(): void
+    {
+        [$tahun, $kelas, $mapel, $siswa] = $this->siapkanData();
+
+        $mapelLain = MataPelajaran::factory()->create(['nama_mapel' => 'Bahasa Indonesia']);
+
+        Nilai::create([
+            'siswa_id' => $siswa->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 80,
+            'sumatif' => 90,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapelLain->id)
+            ->assertSee('Ahmad Fauzi')
+            // nilai 83.0 milik mapel Matematika tidak boleh tampil
+            ->assertDontSee('83.0');
+    }
+
+    public function test_siswa_di_kelas_lain_tidak_tampil(): void
+    {
+        [$tahun, $kelas, $mapel, $siswa] = $this->siapkanData();
+
+        $kelasLain = Kelas::factory()->create(['nama_kelas' => 'IX-B']);
+        $siswaLain = Siswa::factory()->create(['nama' => 'Dewi Lestari']);
+        $siswaLain->kelas()->attach($kelasLain->id, ['tahun_id' => $tahun->id]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            ->assertSee('Ahmad Fauzi')
+            ->assertDontSee('Dewi Lestari');
+    }
+
+    public function test_siswa_tanpa_nilai_tampil_tanda_strip(): void
+    {
+        [$tahun, $kelas, $mapel, $siswa] = $this->siapkanData();
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            ->assertSee('Ahmad Fauzi')
+            ->assertSee('-');
+    }
+
+    public function test_predikat_berdasarkan_nilai_akhir(): void
+    {
+        $kasus = [
+            100.0 => 'A',
+            95.0 => 'A',
+            90.0 => 'A',
+            89.9 => 'B',
+            85.0 => 'B',
+            80.0 => 'B',
+            79.9 => 'C',
+            75.0 => 'C',
+            70.0 => 'C',
+            69.9 => 'D',
+            65.0 => 'D',
+            60.0 => 'D',
+            59.9 => 'E',
+            50.0 => 'E',
+        ];
+
+        foreach ($kasus as $nilaiAkhir => $predikat) {
+            $nilai = new Nilai;
+            $nilai->nilai_akhir = $nilaiAkhir;
+
+            $this->assertSame($predikat, $nilai->predikat(), "Nilai {$nilaiAkhir} seharusnya predikat {$predikat}");
+        }
+    }
+
+    public function test_predikat_null_jika_nilai_akhir_kosong(): void
+    {
+        $nilai = new Nilai;
+
+        $this->assertNull($nilai->predikat());
+    }
+}
