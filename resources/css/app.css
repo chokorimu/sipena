@@ -145,14 +145,13 @@
     --color-canvas: #F3F6FA;
     --color-surface: #FFFFFF;
 
-    /* ─── Spacing (4px Base Grid) ──────────────────────────── */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    --spacing-2xl: 48px;
-    --spacing-3xl: 64px;
+    /* ─── Spacing (4px Base Grid) ────────────────────────────
+     * Grid 4px menggunakan skala default Tailwind (--spacing: 0.25rem),
+     * jadi p-1=4px, p-2=8px, p-4=16px, dst.
+     *
+     * JANGAN tambahkan token bernama di namespace --spacing (mis.
+     * --spacing-lg) — token tersebut memenangkan resolusi utilitas
+     * max-width dan min-width, sehingga max-w-lg jadi 24px, bukan 32rem. */
 
     /* ─── Border Radius ───────────────────────────────────── */
     --radius-sm: 4px;
