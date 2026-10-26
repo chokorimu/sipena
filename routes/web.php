@@ -1,25 +1,36 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::livewire('/login', 'pages::auth.login')->name('login');
+Route::livewire('/login', 'pages::auth.login')->middleware('guest')->name('login');
 
-Route::get('/', function () {
-    return view('dashboard');
-})->name('dashboard');
+Route::post('/logout', function () {
+    Auth::logout();
 
-Route::get('/data-siswa', function () {
-    return view('data-siswa');
-})->name('data-siswa');
+    session()->invalidate();
+    session()->regenerateToken();
 
-Route::get('/input-nilai', function () {
-    return view('input-nilai');
-})->name('input-nilai');
+    return redirect()->route('login');
+})->middleware('auth')->name('logout');
 
-Route::get('/rekap-nilai', function () {
-    return view('rekap-nilai');
-})->name('rekap-nilai');
+Route::middleware('auth')->group(function (): void {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-Route::get('/laporan', function () {
-    return view('laporan');
-})->name('laporan');
+    Route::get('/data-siswa', function () {
+        return view('data-siswa');
+    })->name('data-siswa');
+
+    Route::get('/input-nilai', function () {
+        return view('input-nilai');
+    })->name('input-nilai');
+
+    Route::get('/rekap-nilai', function () {
+        return view('rekap-nilai');
+    })->name('rekap-nilai');
+
+    Route::get('/laporan', function () {
+        return view('laporan');
+    })->name('laporan');
+});

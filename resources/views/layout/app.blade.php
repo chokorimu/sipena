@@ -45,11 +45,21 @@
 
             <x-slot:footer>
                 <div class="flex items-center gap-3">
-                    <x-avatar name="Admin SIPENA" size="sm" />
+                    <x-avatar :name="auth()->user()->name" size="sm" />
                     <div class="flex-1 min-w-0">
-                        <p class="text-[13px] font-medium text-[#1a2233] truncate">Admin</p>
-                        <p class="text-[11px] text-[#66758c] truncate">Administrator</p>
+                        <p class="text-[13px] font-medium text-[#1a2233] truncate">{{ auth()->user()->name }}</p>
+                        <p class="text-[11px] text-[#66758c] truncate">{{ auth()->user()->isAdmin() ? 'Administrator' : 'Guru' }}</p>
                     </div>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button
+                            type="submit"
+                            title="Keluar"
+                            class="inline-flex items-center justify-center h-8 w-8 rounded-md text-[#66758c] hover:text-[#c13e45] hover:bg-[#fff0f0] transition-colors duration-150"
+                        >
+                            <x-heroicon-m-arrow-left-on-rectangle class="h-4 w-4" />
+                        </button>
+                    </form>
                 </div>
             </x-slot:footer>
         </x-sidebar>

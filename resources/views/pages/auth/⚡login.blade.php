@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Validate;
@@ -25,9 +26,26 @@ class extends Component
 
     public function login(): void
     {
-        $this->validate();
+        $this->validate(
+            [
+                'username' => 'required',
+                'password' => 'required',
+            ],
+            [
+                'username.required' => 'Username wajib diisi.',
+                'password.required' => 'Kata sandi wajib diisi.',
+            ]
+        );
 
-        // Login logic akan ditambahkan nanti
+        if (! Auth::attempt(['username' => $this->username, 'password' => $this->password])) {
+            $this->addError('username', 'Username atau kata sandi salah.');
+
+            return;
+        }
+
+        session()->regenerate();
+
+        $this->redirect(route('dashboard'), navigate: false);
     }
 };
 ?>
