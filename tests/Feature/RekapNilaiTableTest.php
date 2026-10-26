@@ -202,9 +202,131 @@ class RekapNilaiTableTest extends TestCase
             ->set('tahunId', (string) $tahun->id)
             ->set('kelasId', (string) $kelas->id)
             ->set('mapelId', (string) $mapel->id)
-            ->assertSee('Peringkat')
-            ->assertSee('Siti Nurhaliza')
-            ->assertSee('Budi Santoso');
+            // kolom No menampilkan peringkat; juara (nilai 100) tampil duluan
+            ->assertSeeInOrder(['No', 'Nama Siswa'])
+            ->assertSeeInOrder(['Siti Nurhaliza', 'Budi Santoso']);
+    }
+
+    public function test_default_sort_berdasarkan_peringkat(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $nilaiRendah = Siswa::factory()->create(['nama' => 'Ahmad Rendah']);
+        $nilaiTinggi = Siswa::factory()->create(['nama' => 'Zainal Tinggi']);
+        $tanpaNilai = Siswa::factory()->create(['nama' => 'Budi Kosong']);
+        $nilaiRendah->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $nilaiTinggi->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $tanpaNilai->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $nilaiRendah->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 50,
+            'sumatif' => 50,
+        ]);
+
+        Nilai::create([
+            'siswa_id' => $nilaiTinggi->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 100,
+            'sumatif' => 100,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            // nilai tertinggi dulu, siswa tanpa nilai di bawah
+            ->assertSeeInOrder([
+                'Zainal Tinggi',
+                'Ahmad Rendah',
+                'Budi Kosong',
+            ]);
+    }
+
+    public function test_sort_kolom_nama_mengubah_urutan(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswaZ = Siswa::factory()->create(['nama' => 'Zainal Tinggi']);
+        $siswaA = Siswa::factory()->create(['nama' => 'Ahmad Rendah']);
+        $siswaZ->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $siswaA->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $siswaZ->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 100,
+            'sumatif' => 100,
+        ]);
+
+        Nilai::create([
+            'siswa_id' => $siswaA->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 50,
+            'sumatif' => 50,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            // default: Zainal (nilai 100) dulu
+            ->assertSeeInOrder(['Zainal Tinggi', 'Ahmad Rendah'])
+            ->call('sort', 'nama')
+            ->assertSet('sortBy', 'nama')
+            ->assertSet('sortDirection', 'asc')
+            // sort nama asc: Ahmad dulu
+            ->assertSeeInOrder(['Ahmad Rendah', 'Zainal Tinggi'])
+            // klik kolom sama lagi → balik arah
+            ->call('sort', 'nama')
+            ->assertSet('sortDirection', 'desc')
+            ->assertSeeInOrder(['Zainal Tinggi', 'Ahmad Rendah']);
+    }
+
+    public function test_sort_nilai_akhir_asc_menaruh_siswa_tanpa_nilai_di_bawah(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswaTinggi = Siswa::factory()->create(['nama' => 'Ahmad Tinggi']);
+        $siswaRendah = Siswa::factory()->create(['nama' => 'Zainal Rendah']);
+        $siswaKosong = Siswa::factory()->create(['nama' => 'Budi Kosong']);
+        $siswaTinggi->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $siswaRendah->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+        $siswaKosong->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $siswaTinggi->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 80,
+            'sumatif' => 80,
+        ]);
+
+        Nilai::create([
+            'siswa_id' => $siswaRendah->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 60,
+            'sumatif' => 60,
+        ]);
+
+        Livewire::test('rekap-nilai-table')
+            ->set('tahunId', (string) $tahun->id)
+            ->set('kelasId', (string) $kelas->id)
+            ->set('mapelId', (string) $mapel->id)
+            // klik pertama kolom numerik: desc
+            ->call('sort', 'nilai_akhir')
+            ->assertSet('sortDirection', 'desc')
+            ->assertSeeInOrder(['Ahmad Tinggi', 'Zainal Rendah', 'Budi Kosong'])
+            // klik lagi: asc, siswa tanpa nilai tetap di bawah
+            ->call('sort', 'nilai_akhir')
+            ->assertSet('sortDirection', 'asc')
+            ->assertSeeInOrder(['Zainal Rendah', 'Ahmad Tinggi', 'Budi Kosong']);
     }
 
     public function test_hitung_ranking_dengan_nilai_seri(): void

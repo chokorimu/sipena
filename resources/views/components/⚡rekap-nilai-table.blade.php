@@ -23,6 +23,12 @@ new class extends Component
     #[Url(as: 'mapel')]
     public string $mapelId = '';
 
+    #[Url(as: 'urut')]
+    public string $sortBy = 'peringkat';
+
+    #[Url(as: 'arah')]
+    public string $sortDirection = 'desc';
+
     public function mount(): void
     {
         if ($this->tahunId === '') {
@@ -43,6 +49,36 @@ new class extends Component
         if (in_array($property, ['tahunId', 'kelasId', 'mapelId'], true)) {
             $this->resetPage();
         }
+    }
+
+    /**
+     * Ganti kolom sort; klik kolom yang sama membalik arah.
+     */
+    public function sort(string $kolom): void
+    {
+        if ($this->sortBy === $kolom) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortBy = $kolom;
+            $this->sortDirection = in_array($kolom, ['nama', 'nisn'], true) ? 'asc' : 'desc';
+        }
+
+        $this->resetPage();
+    }
+
+    /**
+     * Kolom database untuk sorting (predikat memakai nilai akhir sebagai proxy).
+     */
+    private function kolomSort(): string
+    {
+        return match ($this->sortBy) {
+            'nama' => 'siswa.nama',
+            'nisn' => 'siswa.nisn',
+            'formatif' => 'nilai.formatif',
+            'sumatif' => 'nilai.sumatif',
+            'status' => 'nilai.status_kelulusan',
+            default => 'nilai.nilai_akhir',
+        };
     }
 
     #[Computed]
@@ -84,13 +120,26 @@ new class extends Component
     #[Computed]
     public function siswaList()
     {
-        return Siswa::query()
+        $query = Siswa::query()
             ->whereHas('kelas', function ($query): void {
                 $query->where('kelas.id', $this->kelasId)
                     ->where('kelas_siswa.tahun_id', $this->tahunId);
             })
-            ->orderBy('nama')
-            ->paginate(10);
+            ->leftJoin('nilai', function ($join): void {
+                $join->on('nilai.siswa_id', '=', 'siswa.id')
+                    ->where('nilai.mapel_id', $this->mapelId)
+                    ->where('nilai.tahun_id', $this->tahunId);
+            })
+            ->select('siswa.*');
+
+        // Siswa tanpa nilai (NULL) selalu di bawah apa pun arah sort.
+        if (in_array($this->sortBy, ['formatif', 'sumatif', 'nilai_akhir', 'predikat', 'status', 'peringkat'], true)) {
+            $query->orderByRaw($this->kolomSort().' IS NULL');
+        }
+
+        $query->orderBy($this->kolomSort(), $this->sortDirection);
+
+        return $query->paginate(10);
     }
 
     #[Computed]
@@ -222,15 +271,86 @@ new class extends Component
             <table class="w-full text-[13px] leading-[1.45]">
                 <thead>
                     <tr class="border-b border-[#dfe6ef] bg-[#f8f9fb]">
-                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">No</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 100px">Peringkat</th>
-                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Nama Siswa</th>
-                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 110px">NIS</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">Formatif</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">Sumatif</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 100px">Nilai Akhir</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">Predikat</th>
-                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 120px">Status</th>
+                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">
+                            <button type="button" wire:click="sort('peringkat')" class="inline-flex items-center gap-1 group">
+                                No
+                                @if ($this->sortBy === 'peringkat')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">
+                            <button type="button" wire:click="sort('nama')" class="inline-flex items-center gap-1 group">
+                                Nama Siswa
+                                @if ($this->sortBy === 'nama')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 110px">
+                            <button type="button" wire:click="sort('nisn')" class="inline-flex items-center gap-1 group">
+                                NIS
+                                @if ($this->sortBy === 'nisn')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
+                            <button type="button" wire:click="sort('formatif')" class="inline-flex items-center gap-1 group">
+                                Formatif
+                                @if ($this->sortBy === 'formatif')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
+                            <button type="button" wire:click="sort('sumatif')" class="inline-flex items-center gap-1 group">
+                                Sumatif
+                                @if ($this->sortBy === 'sumatif')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 100px">
+                            <button type="button" wire:click="sort('nilai_akhir')" class="inline-flex items-center gap-1 group">
+                                Nilai Akhir
+                                @if ($this->sortBy === 'nilai_akhir')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
+                            <button type="button" wire:click="sort('predikat')" class="inline-flex items-center gap-1 group">
+                                Predikat
+                                @if ($this->sortBy === 'predikat')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
+                        <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 120px">
+                            <button type="button" wire:click="sort('status')" class="inline-flex items-center gap-1 group">
+                                Status
+                                @if ($this->sortBy === 'status')
+                                    <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
+                                @else
+                                    <x-heroicon-m-arrows-up-down class="h-3 w-3 opacity-0 group-hover:opacity-40" />
+                                @endif
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#dfe6ef]">
@@ -259,8 +379,7 @@ new class extends Component
                             };
                         @endphp
                         <tr class="{{ $index % 2 === 1 ? 'bg-[#f8f9fb]/50' : 'bg-white' }} hover:bg-[#ecfdf3]/30 transition-colors duration-100">
-                            <td class="px-5 py-3 text-[#1a2233]">{{ $this->siswaList->firstItem() + $index }}</td>
-                            <td class="px-5 py-3 text-center">
+                            <td class="px-5 py-3">
                                 @if ($peringkat !== null && $peringkat <= 3)
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full {{ $peringkatColors }}">
                                         <x-heroicon-m-trophy class="h-3 w-3" />
@@ -300,7 +419,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
+                            <td colspan="8" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
                                 Tidak ada siswa di kelas ini untuk tahun ajaran terpilih.
                             </td>
                         </tr>
