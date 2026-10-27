@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LaporanExportController;
 use App\Http\Controllers\RekapExportController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/rekap-nilai', function () {
         return view('rekap-nilai');
     })->name('rekap-nilai');
+
+    Route::get('/laporan/export', [LaporanExportController::class, 'export'])->name('laporan.export');
 
     Route::get('/laporan', function () {
         return view('laporan');
