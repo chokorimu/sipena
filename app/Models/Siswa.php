@@ -45,4 +45,12 @@ class Siswa extends Model
     {
         return $this->hasMany(Nilai::class, 'siswa_id');
     }
+
+    /**
+     * @return HasMany<Evaluasi, $this>
+     */
+    public function evaluasi(): HasMany
+    {
+        return $this->hasMany(Evaluasi::class, 'siswa_id');
+    }
 }

@@ -64,4 +64,15 @@
             </tfoot>
         @endif
     </table>
+
+    @if ($evaluasi !== null)
+        <h2>Catatan Evaluasi</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <td>{{ $evaluasi->catatan }}</td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
 @endsection

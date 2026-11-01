@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Evaluasi;
 use App\Models\Kelas;
 use App\Models\MataPelajaran;
 use App\Models\Nilai;
@@ -26,6 +27,14 @@ new class extends Component
     #[Url(as: 'mapel')]
     public string $mapelAnalisis = '';
 
+    // Form evaluasi naratif (rapor siswa)
+    public string $evaluasiTeks = '';
+
+    // Feedback
+    public ?string $pesan = null;
+
+    public string $pesanTipe = 'success';
+
     public function mount(): void
     {
         if ($this->kelasId === '') {
@@ -39,6 +48,10 @@ new class extends Component
         if ($this->mapelAnalisis === '') {
             $this->mapelAnalisis = (string) MataPelajaran::query()->orderBy('nama_mapel')->value('id');
         }
+
+        if ($this->siswaId !== '') {
+            $this->evaluasiTeks = $this->catatanEvaluasiTersimpan();
+        }
     }
 
     public function updated(string $property): void
@@ -46,8 +59,68 @@ new class extends Component
         if (in_array($property, ['kelasId', 'tahunId'], true)) {
             // Reset pilihan siswa & mapel analisis agar sesuai kelas/tahun baru.
             $this->siswaId = '';
+            $this->evaluasiTeks = '';
             $this->mapelAnalisis = (string) MataPelajaran::query()->orderBy('nama_mapel')->value('id');
         }
+
+        if ($property === 'siswaId') {
+            // Muat evaluasi tersimpan siswa yang baru dipilih.
+            $this->evaluasiTeks = $this->catatanEvaluasiTersimpan();
+        }
+    }
+
+    /**
+     * Catatan evaluasi tersimpan untuk siswa & tahun terpilih (string kosong kalau belum ada).
+     */
+    private function catatanEvaluasiTersimpan(): string
+    {
+        if ($this->siswaId === '') {
+            return '';
+        }
+
+        return (string) Evaluasi::query()
+            ->where('siswa_id', $this->siswaId)
+            ->where('tahun_id', $this->tahunId)
+            ->value('catatan');
+    }
+
+    /**
+     * Simpan evaluasi naratif siswa terpilih. Teks kosong = hapus evaluasi.
+     */
+    public function simpanEvaluasi(): void
+    {
+        $siswa = $this->siswaTerpilih;
+
+        if ($siswa === null) {
+            return;
+        }
+
+        $this->validate(
+            ['evaluasiTeks' => ['nullable', 'string', 'max:2000']],
+            ['evaluasiTeks.max' => 'Evaluasi maksimal 2000 karakter.']
+        );
+
+        $catatan = trim($this->evaluasiTeks);
+
+        if ($catatan === '') {
+            Evaluasi::query()
+                ->where('siswa_id', $siswa->id)
+                ->where('tahun_id', $this->tahunId)
+                ->delete();
+
+            $this->pesan = "Evaluasi untuk {$siswa->nama} dikosongkan.";
+            $this->pesanTipe = 'info';
+
+            return;
+        }
+
+        Evaluasi::query()->updateOrCreate(
+            ['siswa_id' => $siswa->id, 'tahun_id' => $this->tahunId],
+            ['catatan' => $catatan],
+        );
+
+        $this->pesan = "Evaluasi untuk {$siswa->nama} berhasil disimpan.";
+        $this->pesanTipe = 'success';
     }
 
     #[Computed]
@@ -328,6 +401,22 @@ new class extends Component
     }
 
     /**
+     * Evaluasi tersimpan untuk siswa & tahun terpilih (untuk info terakhir diperbarui).
+     */
+    #[Computed]
+    public function evaluasiTersimpan(): ?Evaluasi
+    {
+        if ($this->siswaId === '') {
+            return null;
+        }
+
+        return Evaluasi::query()
+            ->where('siswa_id', $this->siswaId)
+            ->where('tahun_id', $this->tahunId)
+            ->first();
+    }
+
+    /**
      * Daftar mata pelajaran (dropdown sebaran nilai).
      */
     #[Computed]
@@ -432,6 +521,16 @@ new class extends Component
 ?>
 
 <div class="flex flex-col gap-6">
+    {{-- Pesan feedback --}}
+    @if ($pesan !== null)
+        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanTipe === 'success' ? 'bg-[#ecfdf3] border-[#a7f3d0]' : 'bg-[#f0f4ff] border-[#d0d9f0]' }}">
+            <x-heroicon-m-{{ $pesanTipe === 'success' ? 'check-circle' : 'information-circle' }} class="h-5 w-5 shrink-0 {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}" />
+            <p class="text-[13px] leading-[1.45] font-medium {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}">
+                {{ $pesan }}
+            </p>
+        </div>
+    @endif
+
     {{-- Filter Bar --}}
     <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
         <div class="flex-1 w-full sm:w-auto">
@@ -570,6 +669,45 @@ new class extends Component
                             </tfoot>
                         @endif
                     </table>
+                </div>
+            </div>
+
+            {{-- Catatan Evaluasi (naratif guru) --}}
+            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+                <div class="px-5 py-4 border-b border-[#dfe6ef] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">Catatan Evaluasi</h3>
+                    @if ($this->evaluasiTersimpan !== null)
+                        <span class="text-[12px] leading-[1.45] text-[#66758c]">
+                            Terakhir diperbarui {{ $this->evaluasiTersimpan->updated_at->format('d/m/Y H:i') }}
+                        </span>
+                    @endif
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="evaluasi-teks" class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">
+                            Evaluasi untuk {{ $rapor['siswa']->nama }}
+                        </label>
+                        <textarea
+                            id="evaluasi-teks"
+                            wire:model="evaluasiTeks"
+                            rows="5"
+                            class="block w-full rounded-[8px] border bg-white p-3 text-[13px] leading-[1.45] text-[#1a2233] placeholder:text-[#96a2b4] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 resize-y {{ $errors->has('evaluasiTeks') ? 'border-[#c13e45] focus:border-[#c13e45] focus:ring-[#c13e45]/20' : 'border-[#dfe6ef] focus:border-[#15803d] focus:ring-[#15803d]/20' }}"
+                            placeholder="Tulis evaluasi siswa dalam kata-kata, misalnya perkembangan belajar, sikap, dan hal yang perlu ditingkatkan..."
+                        >{{ $evaluasiTeks }}</textarea>
+                        @error('evaluasiTeks')
+                            <p class="text-[12px] leading-[1.45] text-[#c13e45]">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <x-button variant="primary" size="md" wire:click="simpanEvaluasi" wire:loading.attr="disabled" wire:target="simpanEvaluasi">
+                            <x-heroicon-m-check class="h-4 w-4 -ml-0.5" />
+                            Simpan Evaluasi
+                        </x-button>
+                        <x-button variant="secondary" size="md" disabled title="Fitur evaluasi otomatis dengan AI segera hadir">
+                            <x-heroicon-m-sparkles class="h-4 w-4 -ml-0.5" />
+                            Buat Evaluasi dengan AI
+                        </x-button>
+                    </div>
                 </div>
             </div>
 

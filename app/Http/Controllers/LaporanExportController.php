@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Evaluasi;
 use App\Models\Kelas;
 use App\Models\MataPelajaran;
 use App\Models\Nilai;
@@ -92,6 +93,10 @@ class LaporanExportController extends Controller
         if ($jenis === 'rapor-siswa') {
             $siswa = $this->siswaRapor($request, $konteks);
             $data['rapor'] = $this->raporSiswa($siswa, $konteks['tahun']->id);
+            $data['evaluasi'] = Evaluasi::query()
+                ->where('siswa_id', $siswa->id)
+                ->where('tahun_id', $konteks['tahun']->id)
+                ->first();
             $namaFile .= '-'.Str::slug($siswa->nama);
         } elseif ($jenis === 'analisis-nilai') {
             $mapel = $this->mapelAnalisis($request);

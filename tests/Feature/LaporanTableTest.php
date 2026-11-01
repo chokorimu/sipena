@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Evaluasi;
 use App\Models\Kelas;
 use App\Models\MataPelajaran;
 use App\Models\Nilai;
 use App\Models\Siswa;
 use App\Models\TahunAjaran;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -205,6 +207,161 @@ class LaporanTableTest extends TestCase
             ->assertSee('Budi Santoso')
             // Siti rata-rata 100 ≥ KKM → tidak masuk daftar perhatian
             ->assertDontSee('Siti Nurhaliza');
+    }
+
+    public function test_simpan_evaluasi_siswa(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->set('evaluasiTeks', 'Ananda menunjukkan perkembangan baik dalam matematika.')
+            ->call('simpanEvaluasi')
+            ->assertHasNoErrors()
+            ->assertSee('berhasil disimpan')
+            ->assertSee('Ananda menunjukkan perkembangan baik dalam matematika.');
+
+        $this->assertDatabaseHas('evaluasi', [
+            'siswa_id' => $siswa->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Ananda menunjukkan perkembangan baik dalam matematika.',
+        ]);
+    }
+
+    public function test_simpan_evaluasi_dua_kali_tidak_duplikat(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->set('evaluasiTeks', 'Evaluasi versi satu.')
+            ->call('simpanEvaluasi')
+            ->set('evaluasiTeks', 'Evaluasi versi dua.')
+            ->call('simpanEvaluasi');
+
+        $this->assertDatabaseCount('evaluasi', 1);
+        $this->assertDatabaseHas('evaluasi', [
+            'siswa_id' => $siswa->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Evaluasi versi dua.',
+        ]);
+    }
+
+    public function test_kosongkan_evaluasi_menghapus_catatan(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Evaluasi::create([
+            'siswa_id' => $siswa->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Evaluasi lama.',
+        ]);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->set('evaluasiTeks', '')
+            ->call('simpanEvaluasi')
+            ->assertSee('dikosongkan');
+
+        $this->assertDatabaseMissing('evaluasi', [
+            'siswa_id' => $siswa->id,
+            'tahun_id' => $tahun->id,
+        ]);
+    }
+
+    public function test_evaluasi_melebihi_2000_karakter_ditolak(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->set('evaluasiTeks', str_repeat('a', 2001))
+            ->call('simpanEvaluasi')
+            ->assertHasErrors('evaluasiTeks');
+    }
+
+    public function test_ganti_siswa_memuat_evaluasi_tersimpan(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siti = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+        $budi = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Budi Santoso', 70, 80);
+
+        Evaluasi::create([
+            'siswa_id' => $siti->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Evaluasi Siti sangat baik.',
+        ]);
+
+        Evaluasi::create([
+            'siswa_id' => $budi->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Evaluasi Budi perlu remedial.',
+        ]);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siti->id)
+            ->assertSee('Evaluasi Siti sangat baik.')
+            ->set('siswaId', (string) $budi->id)
+            ->assertSee('Evaluasi Budi perlu remedial.')
+            ->assertDontSee('Evaluasi Siti sangat baik.');
+    }
+
+    public function test_tombol_ai_evaluasi_placeholder(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->assertSee('Catatan Evaluasi')
+            ->assertSee('Buat Evaluasi dengan AI')
+            ->assertSee('Simpan Evaluasi');
+    }
+
+    public function test_halaman_laporan_url_siswa_memuat_evaluasi(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Evaluasi::create([
+            'siswa_id' => $siswa->id,
+            'tahun_id' => $tahun->id,
+            'catatan' => 'Evaluasi dari URL bookmark.',
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->get("/laporan?jenis=rapor-siswa&kelas={$kelas->id}&tahun={$tahun->id}&siswa={$siswa->id}")
+            ->assertOk()
+            ->assertSee('Evaluasi dari URL bookmark.');
     }
 
     public function test_kelas_lain_tidak_tercampur(): void
