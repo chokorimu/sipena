@@ -20,7 +20,7 @@
 
         {{-- Footer Actions --}}
         <div class="flex items-center gap-3">
-            <x-button variant="primary" size="md" disabled title="Export PDF akan tersedia pada pembaruan berikutnya">
+            <x-button variant="primary" size="md" :href="route('laporan.pdf', request()->query())">
                 <x-heroicon-m-arrow-down-tray class="h-4 w-4 -ml-0.5" />
                 Download PDF
             </x-button>

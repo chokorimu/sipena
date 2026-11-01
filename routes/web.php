@@ -40,6 +40,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/laporan/export', [LaporanExportController::class, 'export'])->name('laporan.export');
 
+    Route::get('/laporan/pdf', [LaporanExportController::class, 'pdf'])->name('laporan.pdf');
+
     Route::get('/laporan', function () {
         return view('laporan');
     })->name('laporan');
