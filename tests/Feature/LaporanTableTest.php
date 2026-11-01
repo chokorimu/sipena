@@ -110,7 +110,41 @@ class LaporanTableTest extends TestCase
             ->assertSee('Pencapaian KKM Perlu Perhatian');
     }
 
-    public function test_jenis_laporan_lain_tampil_pesan_belum_tersedia(): void
+    public function test_rapor_siswa_tampil_nilai_per_mapel(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->assertSee('Siti Nurhaliza')
+            ->assertSee('Matematika')
+            // 0,7 x 80 + 0,3 x 90 = 83,0
+            ->assertSee('83.0')
+            ->assertSee('Tuntas');
+    }
+
+    public function test_rapor_siswa_belum_tuntas_kalau_di_bawah_kkm(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Budi Santoso', 50, 50);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->assertSee('Belum Tuntas')
+            // rata-rata 50 → predikat E
+            ->assertSee('Predikat E');
+    }
+
+    public function test_rapor_siswa_tanpa_pilihan_tampil_pesan(): void
     {
         [$tahun, $kelas, $mapel] = $this->siapkanData();
 
@@ -120,8 +154,57 @@ class LaporanTableTest extends TestCase
             ->set('kelasId', (string) $kelas->id)
             ->set('tahunId', (string) $tahun->id)
             ->set('jenis', 'rapor-siswa')
-            ->assertSee('belum tersedia')
-            ->assertDontSee('Ringkasan Nilai per Mata Pelajaran');
+            ->assertSee('Pilih siswa untuk melihat rapor');
+    }
+
+    public function test_ganti_kelas_reset_pilihan_siswa(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 100, 100);
+        $kelasLain = Kelas::factory()->create(['nama_kelas' => 'IX-B']);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->assertSet('siswaId', (string) $siswa->id)
+            ->set('kelasId', (string) $kelasLain->id)
+            ->assertSet('siswaId', '');
+    }
+
+    public function test_analisis_nilai_tampil_perbandingan_dan_sebaran(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 100, 100);
+        $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Budi Santoso', 50, 50);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'analisis-nilai')
+            ->assertSee('Perbandingan Rata-rata per Mata Pelajaran')
+            ->assertSee('Sebaran Nilai')
+            ->assertSee('Siswa Perlu Perhatian');
+    }
+
+    public function test_siswa_perhatian_hanya_di_bawah_kkm(): void
+    {
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 100, 100);
+        $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Budi Santoso', 50, 50);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'analisis-nilai')
+            // Budi rata-rata 50 < KKM → masuk daftar perhatian
+            ->assertSee('Budi Santoso')
+            // Siti rata-rata 100 ≥ KKM → tidak masuk daftar perhatian
+            ->assertDontSee('Siti Nurhaliza');
     }
 
     public function test_kelas_lain_tidak_tercampur(): void

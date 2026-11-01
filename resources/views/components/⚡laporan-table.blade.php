@@ -20,6 +20,12 @@ new class extends Component
     #[Url(as: 'jenis')]
     public string $jenis = 'rekap-kelas';
 
+    #[Url(as: 'siswa')]
+    public string $siswaId = '';
+
+    #[Url(as: 'mapel')]
+    public string $mapelAnalisis = '';
+
     public function mount(): void
     {
         if ($this->kelasId === '') {
@@ -28,6 +34,19 @@ new class extends Component
 
         if ($this->tahunId === '') {
             $this->tahunId = (string) TahunAjaran::query()->orderByDesc('id')->value('id');
+        }
+
+        if ($this->mapelAnalisis === '') {
+            $this->mapelAnalisis = (string) MataPelajaran::query()->orderBy('nama_mapel')->value('id');
+        }
+    }
+
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['kelasId', 'tahunId'], true)) {
+            // Reset pilihan siswa & mapel analisis agar sesuai kelas/tahun baru.
+            $this->siswaId = '';
+            $this->mapelAnalisis = (string) MataPelajaran::query()->orderBy('nama_mapel')->value('id');
         }
     }
 
@@ -73,7 +92,7 @@ new class extends Component
     public function nilaiKelas()
     {
         return Nilai::query()
-            ->with('mataPelajaran')
+            ->with('mataPelajaran', 'siswa')
             ->where('tahun_id', $this->tahunId)
             ->whereIn('siswa_id', $this->siswaIds)
             ->get()
@@ -216,6 +235,199 @@ new class extends Component
 
         return $catatan;
     }
+
+    /**
+     * KKM untuk tampilan (dipakai judul & varian bar analisis).
+     */
+    #[Computed]
+    public function kkm(): int
+    {
+        return Nilai::KKM;
+    }
+
+    /**
+     * Daftar siswa di kelas & tahun terpilih (dropdown rapor).
+     */
+    #[Computed]
+    public function siswaKelas()
+    {
+        return Siswa::query()
+            ->whereHas('kelas', function ($query): void {
+                $query->where('kelas.id', $this->kelasId)
+                    ->where('kelas_siswa.tahun_id', $this->tahunId);
+            })
+            ->orderBy('nama')
+            ->get();
+    }
+
+    /**
+     * Siswa terpilih untuk rapor; null kalau belum dipilih atau bukan siswa kelas ini.
+     */
+    #[Computed]
+    public function siswaTerpilih(): ?Siswa
+    {
+        if ($this->siswaId === '') {
+            return null;
+        }
+
+        return Siswa::query()
+            ->whereHas('kelas', function ($query): void {
+                $query->where('kelas.id', $this->kelasId)
+                    ->where('kelas_siswa.tahun_id', $this->tahunId);
+            })
+            ->find($this->siswaId);
+    }
+
+    /**
+     * Rapor siswa terpilih: nilai per mapel, rata-rata, predikat, dan status.
+     *
+     * @return array{siswa: Siswa|null, nilai: \Illuminate\Support\Collection<int, Nilai>, rataRata: float|null, status: string, predikat: string|null}
+     */
+    #[Computed]
+    public function raporSiswa(): array
+    {
+        $siswa = $this->siswaTerpilih;
+
+        if ($siswa === null) {
+            return [
+                'siswa' => null,
+                'nilai' => collect(),
+                'rataRata' => null,
+                'status' => '-',
+                'predikat' => null,
+            ];
+        }
+
+        $nilai = Nilai::query()
+            ->with('mataPelajaran')
+            ->where('tahun_id', $this->tahunId)
+            ->where('siswa_id', $siswa->id)
+            ->get()
+            ->filter(fn (Nilai $item): bool => $item->nilai_akhir !== null)
+            ->sortBy(fn (Nilai $item): string => $item->mataPelajaran->nama_mapel)
+            ->values();
+
+        $rataRata = $nilai->isNotEmpty() ? round((float) $nilai->avg('nilai_akhir'), 1) : null;
+
+        $predikat = match (true) {
+            $rataRata === null => null,
+            $rataRata >= 90 => 'A',
+            $rataRata >= 80 => 'B',
+            $rataRata >= 70 => 'C',
+            $rataRata >= 60 => 'D',
+            default => 'E',
+        };
+
+        return [
+            'siswa' => $siswa,
+            'nilai' => $nilai,
+            'rataRata' => $rataRata,
+            'status' => $rataRata !== null && $rataRata >= Nilai::KKM ? 'Tuntas' : 'Belum Tuntas',
+            'predikat' => $predikat,
+        ];
+    }
+
+    /**
+     * Daftar mata pelajaran (dropdown sebaran nilai).
+     */
+    #[Computed]
+    public function daftarMapel()
+    {
+        return MataPelajaran::query()->orderBy('nama_mapel')->get();
+    }
+
+    /**
+     * Mata pelajaran terpilih untuk sebaran nilai.
+     */
+    #[Computed]
+    public function mapelTerpilih(): ?MataPelajaran
+    {
+        return MataPelajaran::query()->find($this->mapelAnalisis);
+    }
+
+    /**
+     * Rata-rata per mata pelajaran, urut dari tertinggi (perbandingan).
+     *
+     * @return \Illuminate\Support\Collection<int, array{mapel: string, rata: float, jumlah: int}>
+     */
+    #[Computed]
+    public function analisisMapel()
+    {
+        return $this->nilaiKelas
+            ->groupBy('mapel_id')
+            ->map(function ($nilaiMapel): array {
+                $nilaiAkhir = $nilaiMapel->pluck('nilai_akhir')->map(fn ($nilai): float => (float) $nilai);
+
+                return [
+                    'mapel' => $nilaiMapel->first()->mataPelajaran->nama_mapel,
+                    'rata' => round($nilaiAkhir->avg(), 1),
+                    'jumlah' => $nilaiAkhir->count(),
+                ];
+            })
+            ->sortByDesc('rata')
+            ->values();
+    }
+
+    /**
+     * Sebaran nilai (histogram 5 rentang) untuk mata pelajaran terpilih.
+     *
+     * @return array<int, array{label: string, jumlah: int, persen: int, variant: string}>
+     */
+    #[Computed]
+    public function sebaranNilai(): array
+    {
+        $nilaiMapel = $this->nilaiKelas
+            ->filter(fn (Nilai $nilai): bool => (string) $nilai->mapel_id === $this->mapelAnalisis)
+            ->pluck('nilai_akhir')
+            ->map(fn ($nilai): float => (float) $nilai);
+
+        $total = $nilaiMapel->count();
+
+        $rentang = [
+            ['label' => '90 - 100', 'min' => 90, 'max' => 101, 'variant' => 'primary'],
+            ['label' => '80 - 89', 'min' => 80, 'max' => 90, 'variant' => 'success'],
+            ['label' => '70 - 79', 'min' => 70, 'max' => 80, 'variant' => 'info'],
+            ['label' => '60 - 69', 'min' => 60, 'max' => 70, 'variant' => 'warning'],
+            ['label' => '0 - 59', 'min' => 0, 'max' => 60, 'variant' => 'danger'],
+        ];
+
+        return collect($rentang)
+            ->map(function (array $item) use ($nilaiMapel, $total): array {
+                $jumlah = $nilaiMapel
+                    ->filter(fn (float $nilai): bool => $nilai >= $item['min'] && $nilai < $item['max'])
+                    ->count();
+
+                return [
+                    'label' => $item['label'],
+                    'jumlah' => $jumlah,
+                    'persen' => $total > 0 ? (int) round($jumlah / $total * 100) : 0,
+                    'variant' => $item['variant'],
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * Siswa perlu perhatian: rata-rata seluruh mapel di bawah KKM (5 terendah).
+     *
+     * @return \Illuminate\Support\Collection<int, array{siswa: Siswa, rata: float}>
+     */
+    #[Computed]
+    public function siswaPerhatian()
+    {
+        return $this->nilaiKelas
+            ->groupBy('siswa_id')
+            ->map(function ($nilaiSiswa): array {
+                return [
+                    'siswa' => $nilaiSiswa->first()->siswa,
+                    'rata' => round((float) $nilaiSiswa->avg('nilai_akhir'), 1),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['rata'] < Nilai::KKM)
+            ->sortBy('rata')
+            ->take(5)
+            ->values();
+    }
 };
 ?>
 
@@ -247,18 +459,234 @@ new class extends Component
         </div>
     </div>
 
-    @if ($jenis !== 'rekap-kelas')
-        {{-- Jenis laporan lain belum tersedia --}}
-        <div class="flex flex-col items-center gap-3 px-5 py-16 bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
-            <div class="flex items-center justify-center h-12 w-12 rounded-md bg-[#f0f4ff] text-[#3b5998]">
-                <x-heroicon-o-document-text class="h-6 w-6" />
+    @if ($jenis === 'rapor-siswa')
+        @php
+            $rapor = $this->raporSiswa;
+        @endphp
+
+        {{-- Pilih Siswa --}}
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            <div class="flex-1 w-full sm:w-auto">
+                <x-select name="siswa_rapor" label="Pilih Siswa" wire:model.live="siswaId">
+                    <option value="">Pilih Siswa</option>
+                    @foreach ($this->siswaKelas as $siswaItem)
+                        <option value="{{ $siswaItem->id }}">{{ $siswaItem->nama }} &mdash; NISN {{ $siswaItem->nisn }}</option>
+                    @endforeach
+                </x-select>
             </div>
-            <p class="text-[14px] font-semibold text-[#1a2233]">
-                {{ $jenis === 'rapor-siswa' ? 'Rapor Siswa' : 'Analisis Nilai' }} belum tersedia
-            </p>
-            <p class="text-[13px] text-[#66758c] text-center max-w-[420px]">
-                Jenis laporan ini masih dalam pengembangan. Saat ini hanya <span class="font-medium text-[#1a2233]">Rekap Kelas</span> yang sudah terhubung ke database.
-            </p>
+        </div>
+
+        @if ($rapor['siswa'] === null)
+            {{-- Empty state: siswa belum dipilih --}}
+            <div class="flex flex-col items-center gap-3 px-5 py-16 bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+                <div class="flex items-center justify-center h-12 w-12 rounded-md bg-[#f0f4ff] text-[#3b5998]">
+                    <x-heroicon-o-user class="h-6 w-6" />
+                </div>
+                <p class="text-[14px] font-semibold text-[#1a2233]">Pilih siswa untuk melihat rapor</p>
+                <p class="text-[13px] text-[#66758c] text-center max-w-[420px]">
+                    Pilih siswa dari kelas dan tahun ajaran terpilih untuk menampilkan rapor berisi nilai per mata pelajaran, rata-rata, dan status kelulusan.
+                </p>
+            </div>
+        @else
+            {{-- Kartu Rapor --}}
+            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+                {{-- Header: identitas siswa --}}
+                <div class="px-5 py-4 border-b border-[#dfe6ef] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-md bg-[#f0f4ff] text-[#3b5998] shrink-0">
+                            <x-heroicon-m-user class="h-6 w-6" />
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <p class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">{{ $rapor['siswa']->nama }}</p>
+                            <p class="text-[13px] leading-[1.45] text-[#66758c]">
+                                NISN {{ $rapor['siswa']->nisn }} &middot; Kelas {{ $this->kelasTerpilih?->nama_kelas ?? '-' }} &middot; Tahun Ajaran {{ $this->tahunTerpilih?->tahun_ajaran ?? '-' }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#f0f4ff] text-[#3b5998]">
+                            Rata-rata {{ $rapor['rataRata'] !== null ? number_format($rapor['rataRata'], 1) : '-' }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#f3f6fa] text-[#66758c]">
+                            Predikat {{ $rapor['predikat'] ?? '-' }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full {{ $rapor['status'] === 'Tuntas' ? 'bg-[#ecfdf3] text-[#15803d]' : 'bg-[#fff0f0] text-[#c13e45]' }}">
+                            {{ $rapor['status'] }}
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Tabel nilai per mata pelajaran --}}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[13px] leading-[1.45]">
+                        <thead>
+                            <tr class="border-b border-[#dfe6ef] bg-[#f8f9fb]">
+                                <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">No</th>
+                                <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Mata Pelajaran</th>
+                                <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Formatif</th>
+                                <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Sumatif</th>
+                                <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Nilai Akhir</th>
+                                <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Predikat</th>
+                                <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#dfe6ef]">
+                            @forelse ($rapor['nilai'] as $index => $nilai)
+                                <tr class="{{ $index % 2 === 1 ? 'bg-[#f8f9fb]/50' : 'bg-white' }} hover:bg-[#ecfdf3]/30 transition-colors duration-100">
+                                    <td class="px-5 py-3 text-[#1a2233]">{{ $index + 1 }}</td>
+                                    <td class="px-5 py-3 text-[#1a2233] font-medium">{{ $nilai->mataPelajaran->nama_mapel }}</td>
+                                    <td class="px-5 py-3 text-center text-[#66758c]">{{ number_format((float) $nilai->formatif, 1) }}</td>
+                                    <td class="px-5 py-3 text-center text-[#66758c]">{{ number_format((float) $nilai->sumatif, 1) }}</td>
+                                    <td class="px-5 py-3 text-center font-semibold text-[#1a2233]">{{ number_format((float) $nilai->nilai_akhir, 1) }}</td>
+                                    <td class="px-5 py-3 text-center text-[#1a2233]">{{ $nilai->predikat() }}</td>
+                                    <td class="px-5 py-3 text-center">
+                                        @if ($nilai->status_kelulusan === 'Lulus')
+                                            <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#ecfdf3] text-[#15803d]">Lulus</span>
+                                        @else
+                                            <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#fff0f0] text-[#c13e45]">Tidak Lulus</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
+                                        Belum ada nilai yang tercatat untuk siswa ini pada tahun ajaran terpilih.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        @if ($rapor['nilai']->isNotEmpty())
+                            <tfoot>
+                                <tr class="border-t-2 border-[#dfe6ef] bg-[#f8f9fb]">
+                                    <td colspan="4" class="px-5 py-3 text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Rata-rata</td>
+                                    <td class="px-5 py-3 text-center font-bold text-[#1a2233]">{{ number_format($rapor['rataRata'], 1) }}</td>
+                                    <td class="px-5 py-3 text-center font-semibold text-[#1a2233]">{{ $rapor['predikat'] }}</td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full {{ $rapor['status'] === 'Tuntas' ? 'bg-[#ecfdf3] text-[#15803d]' : 'bg-[#fff0f0] text-[#c13e45]' }}">
+                                            {{ $rapor['status'] }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        @endif
+                    </table>
+                </div>
+            </div>
+
+            {{-- Aksi rapor --}}
+            <div class="flex items-center gap-3">
+                <x-button variant="secondary" size="md" onclick="window.print()">
+                    <x-heroicon-m-printer class="h-4 w-4 -ml-0.5" />
+                    Cetak Rapor
+                </x-button>
+            </div>
+        @endif
+    @elseif ($jenis === 'analisis-nilai')
+        @php
+            $mapelInfo = $this->mapelTerpilih;
+        @endphp
+
+        {{-- Pilih Mata Pelajaran untuk sebaran nilai --}}
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            <div class="flex-1 w-full sm:w-auto">
+                <x-select name="mapel_analisis" label="Mata Pelajaran (Sebaran Nilai)" wire:model.live="mapelAnalisis">
+                    <option value="">Pilih Mata Pelajaran</option>
+                    @foreach ($this->daftarMapel as $mapelItem)
+                        <option value="{{ $mapelItem->id }}">{{ $mapelItem->nama_mapel }}</option>
+                    @endforeach
+                </x-select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {{-- Perbandingan rata-rata per mata pelajaran --}}
+            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+                <div class="px-5 py-4 border-b border-[#dfe6ef]">
+                    <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">Perbandingan Rata-rata per Mata Pelajaran</h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                    @forelse ($this->analisisMapel as $item)
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['mapel'] }}</span>
+                                <span class="text-[13px] leading-[1.45] text-[#66758c]">{{ number_format($item['rata'], 1) }} ({{ $item['jumlah'] }} nilai)</span>
+                            </div>
+                            <x-progress-bar
+                                :value="$item['rata']"
+                                :variant="$item['rata'] >= $this->kkm ? 'success' : 'danger'"
+                                size="sm"
+                            />
+                        </div>
+                    @empty
+                        <p class="text-[13px] text-[#96a2b4] text-center py-6">
+                            Belum ada nilai yang tercatat untuk kelas dan tahun ajaran terpilih.
+                        </p>
+                    @endforelse
+                </div>
+            </div>
+
+            {{-- Sebaran nilai mata pelajaran terpilih --}}
+            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+                <div class="px-5 py-4 border-b border-[#dfe6ef]">
+                    <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">
+                        Sebaran Nilai{{ $mapelInfo !== null ? ' &mdash; '.$mapelInfo->nama_mapel : '' }}
+                    </h3>
+                </div>
+                <div class="p-5 flex flex-col gap-4">
+                    @foreach ($this->sebaranNilai as $item)
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['label'] }}</span>
+                                <span class="text-[13px] leading-[1.45] text-[#66758c]">{{ $item['jumlah'] }} siswa ({{ $item['persen'] }}%)</span>
+                            </div>
+                            <x-progress-bar
+                                :value="$item['persen']"
+                                :variant="$item['variant']"
+                                size="sm"
+                            />
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        {{-- Siswa perlu perhatian --}}
+        <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+            <div class="px-5 py-4 border-b border-[#dfe6ef]">
+                <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">Siswa Perlu Perhatian (Rata-rata di bawah KKM {{ $this->kkm }})</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-[13px] leading-[1.45]">
+                    <thead>
+                        <tr class="border-b border-[#dfe6ef] bg-[#f8f9fb]">
+                            <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">No</th>
+                            <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Nama Siswa</th>
+                            <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">NISN</th>
+                            <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Rata-rata</th>
+                            <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#dfe6ef]">
+                        @forelse ($this->siswaPerhatian as $index => $item)
+                            <tr class="{{ $index % 2 === 1 ? 'bg-[#f8f9fb]/50' : 'bg-white' }} hover:bg-[#ecfdf3]/30 transition-colors duration-100">
+                                <td class="px-5 py-3 text-[#1a2233]">{{ $index + 1 }}</td>
+                                <td class="px-5 py-3 text-[#1a2233] font-medium">{{ $item['siswa']->nama }}</td>
+                                <td class="px-5 py-3 text-[#66758c]">{{ $item['siswa']->nisn }}</td>
+                                <td class="px-5 py-3 text-center font-semibold text-[#c13e45]">{{ number_format($item['rata'], 1) }}</td>
+                                <td class="px-5 py-3 text-center">
+                                    <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#fff0f0] text-[#c13e45]">Belum Tuntas</span>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-5 py-10 text-center text-[13px] text-[#96a2b4]">
+                                    Semua siswa telah mencapai KKM. Pertahankan!
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     @else
         {{-- Stat Cards --}}
