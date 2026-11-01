@@ -10,6 +10,7 @@ use App\Models\Siswa;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -43,6 +44,24 @@ class LaporanTableTest extends TestCase
         ]);
 
         return $siswa;
+    }
+
+    /**
+     * Fake respons sukses Gemini generateContent.
+     */
+    private function fakeGemini(string $teks): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [['text' => $teks]],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
     }
 
     public function test_statistik_kelas_dihitung_dari_data(): void
@@ -330,7 +349,7 @@ class LaporanTableTest extends TestCase
             ->assertDontSee('Evaluasi Siti sangat baik.');
     }
 
-    public function test_tombol_ai_evaluasi_placeholder(): void
+    public function test_kartu_evaluasi_tampil_di_rapor_siswa(): void
     {
         [$tahun, $kelas, $mapel] = $this->siapkanData();
 
@@ -344,6 +363,132 @@ class LaporanTableTest extends TestCase
             ->assertSee('Catatan Evaluasi')
             ->assertSee('Buat Evaluasi dengan AI')
             ->assertSee('Simpan Evaluasi');
+    }
+
+    public function test_buat_evaluasi_ai_mengisi_textarea(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        $this->fakeGemini('Ananda menunjukkan perkembangan yang baik. Terus tingkatkan kebiasaan belajar.');
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            ->assertHasNoErrors()
+            ->assertSet('evaluasiTeks', 'Ananda menunjukkan perkembangan yang baik. Terus tingkatkan kebiasaan belajar.')
+            ->assertSee('Draft evaluasi berhasil dibuat');
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'generativelanguage.googleapis.com/v1beta/models/')
+                && $request->hasHeader('x-goog-api-key', 'kunci-uji')
+                && str_contains($request->body(), 'Matematika');
+        });
+    }
+
+    public function test_buat_evaluasi_ai_tanpa_api_key(): void
+    {
+        config(['services.gemini.api_key' => null]);
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            // Textarea tidak terisi kalau AI gagal.
+            ->assertSet('evaluasiTeks', '')
+            ->assertSee('API key Gemini belum dikonfigurasi');
+    }
+
+    public function test_buat_evaluasi_ai_gagal_http(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response(['error' => 'quota'], 500),
+        ]);
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            ->assertSet('evaluasiTeks', '')
+            ->assertSee('Gagal membuat evaluasi dengan AI');
+    }
+
+    public function test_buat_evaluasi_ai_tanpa_siswa_terpilih(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        $this->fakeGemini('Teks apapun.');
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->call('buatEvaluasiAi')
+            ->assertSet('evaluasiTeks', '')
+            ->assertSee('Pilih siswa terlebih dahulu');
+    }
+
+    public function test_buat_evaluasi_ai_siswa_tanpa_nilai(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        $this->fakeGemini('Teks apapun.');
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = Siswa::factory()->create(['nama' => 'Siti Nurhaliza']);
+        $siswa->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            ->assertSet('evaluasiTeks', '')
+            ->assertSee('Belum ada nilai');
+    }
+
+    public function test_prompt_ai_tidak_mengirim_nama_siswa(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        $this->fakeGemini('Ananda menunjukkan perkembangan yang baik.');
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi');
+
+        // Privasi: nama siswa tidak boleh ikut terkirim ke API.
+        Http::assertSent(function ($request) use ($siswa): bool {
+            return ! str_contains($request->body(), $siswa->nama);
+        });
     }
 
     public function test_halaman_laporan_url_siswa_memuat_evaluasi(): void

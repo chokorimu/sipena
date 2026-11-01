@@ -6,6 +6,7 @@ use App\Models\MataPelajaran;
 use App\Models\Nilai;
 use App\Models\Siswa;
 use App\Models\TahunAjaran;
+use App\Services\EvaluasiAiService;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -121,6 +122,83 @@ new class extends Component
 
         $this->pesan = "Evaluasi untuk {$siswa->nama} berhasil disimpan.";
         $this->pesanTipe = 'success';
+    }
+
+    /**
+     * Buat draft evaluasi naratif via AI (Gemini). Hasil mengisi textarea,
+     * belum disimpan — guru bisa edit dulu sebelum menekan Simpan Evaluasi.
+     */
+    public function buatEvaluasiAi(): void
+    {
+        $siswa = $this->siswaTerpilih;
+
+        if ($siswa === null) {
+            $this->pesan = 'Pilih siswa terlebih dahulu sebelum membuat evaluasi dengan AI.';
+            $this->pesanTipe = 'error';
+
+            return;
+        }
+
+        $rapor = $this->raporSiswa;
+
+        if ($rapor['nilai']->isEmpty()) {
+            $this->pesan = "Belum ada nilai untuk {$siswa->nama} pada tahun ajaran terpilih.";
+            $this->pesanTipe = 'error';
+
+            return;
+        }
+
+        $tahun = $this->tahunTerpilih;
+
+        $hasil = app(EvaluasiAiService::class)->draftEvaluasi(
+            $rapor['nilai'],
+            $rapor['rataRata'],
+            $rapor['status'],
+            $rapor['predikat'],
+            $this->kelasTerpilih?->nama_kelas ?? '-',
+            $tahun !== null ? "{$tahun->tahun_ajaran} {$tahun->semester}" : '-',
+        );
+
+        if (! $hasil['sukses']) {
+            $this->pesan = $hasil['pesan'];
+            $this->pesanTipe = 'error';
+
+            return;
+        }
+
+        $this->evaluasiTeks = $hasil['teks'];
+        $this->pesan = $hasil['pesan'];
+        $this->pesanTipe = 'success';
+    }
+
+    /**
+     * Kelas CSS banner pesan sesuai tipe (success/info/error).
+     *
+     * @return array{bg: string, border: string, text: string, icon: string}
+     */
+    #[Computed]
+    public function pesanKelas(): array
+    {
+        return match ($this->pesanTipe) {
+            'error' => [
+                'bg' => 'bg-[#fef2f2]',
+                'border' => 'border-[#fecaca]',
+                'text' => 'text-[#c13e45]',
+                'icon' => 'exclamation-triangle',
+            ],
+            'success' => [
+                'bg' => 'bg-[#ecfdf3]',
+                'border' => 'border-[#a7f3d0]',
+                'text' => 'text-[#15803d]',
+                'icon' => 'check-circle',
+            ],
+            default => [
+                'bg' => 'bg-[#f0f4ff]',
+                'border' => 'border-[#d0d9f0]',
+                'text' => 'text-[#3b5998]',
+                'icon' => 'information-circle',
+            ],
+        };
     }
 
     #[Computed]
@@ -523,9 +601,12 @@ new class extends Component
 <div class="flex flex-col gap-6">
     {{-- Pesan feedback --}}
     @if ($pesan !== null)
-        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanTipe === 'success' ? 'bg-[#ecfdf3] border-[#a7f3d0]' : 'bg-[#f0f4ff] border-[#d0d9f0]' }}">
-            <x-heroicon-m-{{ $pesanTipe === 'success' ? 'check-circle' : 'information-circle' }} class="h-5 w-5 shrink-0 {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}" />
-            <p class="text-[13px] leading-[1.45] font-medium {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}">
+        @php
+            $pesanStyle = $this->pesanKelas();
+        @endphp
+        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanStyle['bg'] }} {{ $pesanStyle['border'] }}">
+            <x-heroicon-m-{{ $pesanStyle['icon'] }} class="h-5 w-5 shrink-0 {{ $pesanStyle['text'] }}" />
+            <p class="text-[13px] leading-[1.45] font-medium {{ $pesanStyle['text'] }}">
                 {{ $pesan }}
             </p>
         </div>
@@ -703,9 +784,10 @@ new class extends Component
                             <x-heroicon-m-check class="h-4 w-4 -ml-0.5" />
                             Simpan Evaluasi
                         </x-button>
-                        <x-button variant="secondary" size="md" disabled title="Fitur evaluasi otomatis dengan AI segera hadir">
+                        <x-button variant="secondary" size="md" wire:click="buatEvaluasiAi" wire:loading.attr="disabled" wire:target="buatEvaluasiAi" title="Buat draft evaluasi otomatis dengan AI (Gemini) — bisa diedit sebelum disimpan">
                             <x-heroicon-m-sparkles class="h-4 w-4 -ml-0.5" />
-                            Buat Evaluasi dengan AI
+                            <span wire:loading.remove wire:target="buatEvaluasiAi">Buat Evaluasi dengan AI</span>
+                            <span wire:loading wire:target="buatEvaluasiAi">Membuat...</span>
                         </x-button>
                     </div>
                 </div>
