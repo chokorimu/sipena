@@ -36,7 +36,7 @@ class EvaluasiAiService
             ];
         }
 
-        $model = config('services.gemini.model', 'gemini-3.5-flash');
+        $model = config('services.gemini.model', 'gemini-3.6-flash');
 
         try {
             $response = Http::withHeaders(['x-goog-api-key' => $apiKey])
@@ -49,7 +49,13 @@ class EvaluasiAiService
                         ],
                     ],
                     'generationConfig' => [
-                        'maxOutputTokens' => 1024,
+                        // Model 3.x menghitung thinking token ke maxOutputTokens — budget
+                        // kecil bikin teks terpotong di tengah kalimat. Thinking level
+                        // rendah cukup untuk task nulis evaluasi sekaligus mempercepat.
+                        'maxOutputTokens' => 4096,
+                        'thinkingConfig' => [
+                            'thinkingLevel' => 'low',
+                        ],
                     ],
                 ]);
         } catch (Throwable $e) {
@@ -76,7 +82,20 @@ class EvaluasiAiService
             ];
         }
 
-        $teks = trim((string) data_get($response->json(), 'candidates.0.content.parts.0.text', ''));
+        $json = $response->json();
+        $finishReason = data_get($json, 'candidates.0.finishReason');
+
+        if ($finishReason === 'MAX_TOKENS') {
+            Log::warning('Gemini evaluasi terpotong (MAX_TOKENS) pada model '.$model);
+
+            return [
+                'sukses' => false,
+                'teks' => '',
+                'pesan' => 'Draf AI terpotong di tengah jalan (batas token tercapai). Coba lagi.',
+            ];
+        }
+
+        $teks = trim((string) data_get($json, 'candidates.0.content.parts.0.text', ''));
 
         if ($teks === '') {
             return [
@@ -87,7 +106,7 @@ class EvaluasiAiService
         }
 
         if (mb_strlen($teks) > self::MAKS_KARAKTER) {
-            $teks = mb_substr($teks, 0, self::MAKS_KARAKTER);
+            $teks = $this->potongDiAkhirKalimat($teks, self::MAKS_KARAKTER);
         }
 
         return [
@@ -95,6 +114,24 @@ class EvaluasiAiService
             'teks' => $teks,
             'pesan' => 'Draft evaluasi berhasil dibuat. Periksa dan edit sebelum menyimpan.',
         ];
+    }
+
+    /**
+     * Potong teks di akhir kalimat terakhir sebelum limit, supaya draf tidak
+     * berhenti di tengah kalimat.
+     */
+    private function potongDiAkhirKalimat(string $teks, int $limit): string
+    {
+        $potongan = mb_substr($teks, 0, $limit);
+
+        $posisi = max(
+            strrpos($potongan, '.') ?: 0,
+            strrpos($potongan, '!') ?: 0,
+            strrpos($potongan, '?') ?: 0,
+            strrpos($potongan, "\n") ?: 0,
+        );
+
+        return rtrim(mb_substr($potongan, 0, $posisi + 1));
     }
 
     /**

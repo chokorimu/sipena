@@ -58,6 +58,7 @@ class LaporanTableTest extends TestCase
                         'content' => [
                             'parts' => [['text' => $teks]],
                         ],
+                        'finishReason' => 'STOP',
                     ],
                 ],
             ], 200),
@@ -429,6 +430,59 @@ class LaporanTableTest extends TestCase
             ->call('buatEvaluasiAi')
             ->assertSet('evaluasiTeks', '')
             ->assertSee('Gagal membuat evaluasi dengan AI');
+    }
+
+    public function test_buat_evaluasi_ai_terpotong_max_tokens(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [['text' => 'Ananda telah menunjukkan usaha yang cukup baik di']],
+                        ],
+                        'finishReason' => 'MAX_TOKENS',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            // Draft terpotong tidak diisi ke textarea.
+            ->assertSet('evaluasiTeks', '')
+            ->assertSee('terpotong');
+    }
+
+    public function test_draft_kepanjangan_dipotong_di_akhir_kalimat(): void
+    {
+        config(['services.gemini.api_key' => 'kunci-uji']);
+        $this->fakeGemini(str_repeat('Ananda menunjukkan perkembangan yang baik dalam belajar. ', 120));
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        $draft = Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->call('buatEvaluasiAi')
+            ->get('evaluasiTeks');
+
+        $this->assertLessThanOrEqual(1800, mb_strlen($draft));
+        $this->assertStringEndsWith('.', $draft);
+        $this->assertStringContainsString('Ananda menunjukkan', $draft);
     }
 
     public function test_buat_evaluasi_ai_tanpa_siswa_terpilih(): void
