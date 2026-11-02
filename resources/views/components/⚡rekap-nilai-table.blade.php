@@ -273,7 +273,7 @@ new class extends Component
                     <tr class="border-b border-[#dfe6ef] bg-[#f8f9fb]">
                         <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 60px">
                             <button type="button" wire:click="sort('peringkat')" class="inline-flex items-center gap-1 group">
-                                No
+                                NO
                                 @if ($this->sortBy === 'peringkat')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -283,7 +283,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-left text-[12px] font-semibold text-[#66758c] uppercase tracking-wider">
                             <button type="button" wire:click="sort('nama')" class="inline-flex items-center gap-1 group">
-                                Nama Siswa
+                                NAMA SISWA
                                 @if ($this->sortBy === 'nama')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -303,7 +303,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
                             <button type="button" wire:click="sort('formatif')" class="inline-flex items-center gap-1 group">
-                                Formatif
+                                FORMATIF
                                 @if ($this->sortBy === 'formatif')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -313,7 +313,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
                             <button type="button" wire:click="sort('sumatif')" class="inline-flex items-center gap-1 group">
-                                Sumatif
+                                SUMATIF
                                 @if ($this->sortBy === 'sumatif')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -323,7 +323,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 100px">
                             <button type="button" wire:click="sort('nilai_akhir')" class="inline-flex items-center gap-1 group">
-                                Nilai Akhir
+                                NILAI AKHIR
                                 @if ($this->sortBy === 'nilai_akhir')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -333,7 +333,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 90px">
                             <button type="button" wire:click="sort('predikat')" class="inline-flex items-center gap-1 group">
-                                Predikat
+                                PREDIKAT
                                 @if ($this->sortBy === 'predikat')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else
@@ -343,7 +343,7 @@ new class extends Component
                         </th>
                         <th class="px-5 py-3 text-center text-[12px] font-semibold text-[#66758c] uppercase tracking-wider" style="width: 120px">
                             <button type="button" wire:click="sort('status')" class="inline-flex items-center gap-1 group">
-                                Status
+                                STATUS
                                 @if ($this->sortBy === 'status')
                                     <x-heroicon-m-arrow-up class="h-3 w-3 {{ $this->sortDirection === 'desc' ? 'rotate-180' : '' }}" />
                                 @else

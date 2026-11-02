@@ -50,9 +50,9 @@ class RekapExportTest extends TestCase
 
         $content = $response->streamedContent();
 
-        $this->assertStringContainsString('Peringkat', $content);
-        $this->assertStringContainsString('Nama Siswa', $content);
-        $this->assertStringContainsString('Nilai Akhir', $content);
+        $this->assertStringContainsString('PERINGKAT', $content);
+        $this->assertStringContainsString('NAMA SISWA', $content);
+        $this->assertStringContainsString('NILAI AKHIR', $content);
         $this->assertStringContainsString('Ahmad Fauzi', $content);
         $this->assertStringContainsString($siswa->nisn, $content);
         // 0,7 x 80 + 0,3 x 90 = 83, format Indonesia: 83,00

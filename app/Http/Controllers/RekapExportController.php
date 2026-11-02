@@ -59,14 +59,14 @@ class RekapExportController extends Controller
             fwrite($handle, "\xEF\xBB\xBF");
 
             fputcsv($handle, [
-                'Peringkat',
+                'PERINGKAT',
                 'NIS',
-                'Nama Siswa',
-                'Formatif',
-                'Sumatif',
-                'Nilai Akhir',
-                'Predikat',
-                'Status',
+                'NAMA SISWA',
+                'FORMATIF',
+                'SUMATIF',
+                'NILAI AKHIR',
+                'PREDIKAT',
+                'STATUS',
             ]);
 
             foreach ($siswaList as $siswa) {

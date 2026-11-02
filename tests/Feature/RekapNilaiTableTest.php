@@ -203,7 +203,7 @@ class RekapNilaiTableTest extends TestCase
             ->set('kelasId', (string) $kelas->id)
             ->set('mapelId', (string) $mapel->id)
             // kolom No menampilkan peringkat; juara (nilai 100) tampil duluan
-            ->assertSeeInOrder(['No', 'Nama Siswa'])
+            ->assertSeeInOrder(['NO', 'NAMA SISWA'])
             ->assertSeeInOrder(['Siti Nurhaliza', 'Budi Santoso']);
     }
 
