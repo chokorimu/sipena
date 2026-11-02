@@ -177,7 +177,7 @@ new class extends Component
     {{-- Pesan feedback --}}
     @if ($pesan !== null)
         <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanTipe === 'success' ? 'bg-[#ecfdf3] border-[#a7f3d0]' : 'bg-[#f0f4ff] border-[#d0d9f0]' }}">
-            <x-heroicon-m-{{ $pesanTipe === 'success' ? 'check-circle' : 'information-circle' }} class="h-5 w-5 shrink-0 {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}" />
+            <x-icon :name="'heroicon-m-'.($pesanTipe === 'success' ? 'check-circle' : 'information-circle')" class="h-5 w-5 shrink-0 {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}" />
             <p class="text-[13px] leading-[1.45] font-medium {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}">
                 {{ $pesan }}
             </p>

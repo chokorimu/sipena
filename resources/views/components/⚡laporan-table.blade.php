@@ -605,7 +605,7 @@ new class extends Component
             $pesanStyle = $this->pesanKelas();
         @endphp
         <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanStyle['bg'] }} {{ $pesanStyle['border'] }}">
-            <x-heroicon-m-{{ $pesanStyle['icon'] }} class="h-5 w-5 shrink-0 {{ $pesanStyle['text'] }}" />
+            <x-icon :name="'heroicon-m-'.$pesanStyle['icon']" class="h-5 w-5 shrink-0 {{ $pesanStyle['text'] }}" />
             <p class="text-[13px] leading-[1.45] font-medium {{ $pesanStyle['text'] }}">
                 {{ $pesan }}
             </p>
@@ -1040,7 +1040,7 @@ new class extends Component
                     @foreach ($this->catatan as $item)
                         <div class="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
                             <div class="flex items-center justify-center h-8 w-8 rounded-[8px] shrink-0 {{ $item['tipe'] === 'success' ? 'bg-[#ecfdf3] text-[#15803d]' : 'bg-[#fff5df] text-[#a56708]' }}">
-                                <x-heroicon-m-{{ $item['tipe'] === 'success' ? 'check' : 'exclamation-triangle' }} class="h-4 w-4" />
+                                <x-icon :name="'heroicon-m-'.($item['tipe'] === 'success' ? 'check' : 'exclamation-triangle')" class="h-4 w-4" />
                             </div>
                             <div class="flex flex-col gap-0.5 min-w-0">
                                 <p class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['judul'] }}</p>
