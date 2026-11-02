@@ -36,11 +36,11 @@ class EvaluasiAiService
             ];
         }
 
-        $model = config('services.gemini.model', 'gemini-2.5-flash');
+        $model = config('services.gemini.model', 'gemini-3.5-flash');
 
         try {
             $response = Http::withHeaders(['x-goog-api-key' => $apiKey])
-                ->timeout(30)
+                ->timeout(60)
                 ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
                     'contents' => [
                         [
@@ -68,7 +68,11 @@ class EvaluasiAiService
             return [
                 'sukses' => false,
                 'teks' => '',
-                'pesan' => 'Gagal membuat evaluasi dengan AI (layanan menolak permintaan). Coba lagi nanti.',
+                'pesan' => match ($response->status()) {
+                    429 => 'Kuota permintaan AI sudah habis untuk saat ini. Coba lagi nanti.',
+                    503 => 'Layanan AI sedang sibuk (permintaan melonjak). Coba lagi beberapa saat.',
+                    default => 'Gagal membuat evaluasi dengan AI (layanan menolak permintaan). Coba lagi nanti.',
+                },
             ];
         }
 
