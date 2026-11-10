@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::livewire('/login', 'pages::auth.login')->middleware('guest')->name('login');
 
+// Rute selalu terdaftar supaya route('register') tidak error saat ditutup;
+// komponennya sendiri membalas 403 bila config sipena.registrasi_dibuka = false.
+Route::livewire('/register', 'pages::auth.register')->middleware('guest')->name('register');
+
 Route::post('/logout', function () {
     Auth::logout();
 

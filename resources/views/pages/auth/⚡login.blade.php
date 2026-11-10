@@ -137,6 +137,16 @@ class extends Component
             </button>
         </form>
 
+        {{-- Tautan Pendaftaran --}}
+        @if (config('sipena.registrasi_dibuka'))
+            <p class="text-[12px] leading-[1.6] text-[#66758c] text-center">
+                Belum punya akun?
+                <a href="{{ route('register') }}" class="font-semibold text-[#15803d] hover:underline">
+                    Daftar di sini
+                </a>
+            </p>
+        @endif
+
         {{-- Bantuan Akses --}}
         {{-- <div class="w-full flex gap-3 items-start bg-[#ecfdf3] rounded-[8px] p-4">
             <span class="shrink-0 text-[#15803d]">
