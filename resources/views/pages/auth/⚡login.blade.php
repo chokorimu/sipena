@@ -56,8 +56,8 @@ class extends Component
 
         {{-- Identitas Sekolah --}}
         <div class="flex items-center gap-2 h-12">
-            <div class="h-12 w-12 shrink-0 rounded-[8px] bg-[#15803d] flex items-center justify-center">
-                <span class="text-white font-bold text-[18px]">SP</span>
+            <div class="flex items-center justify-center h-10 w-10 rounded-md shrink-0">
+                <img src="{{ asset('images/logo.png') }}" alt="">
             </div>
             <div class="flex flex-col justify-center overflow-hidden">
                 <span class="text-[11px] leading-[1.6] text-[#66758c]">MTs Negeri Ambon</span>
