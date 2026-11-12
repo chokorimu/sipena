@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\Nilai;
+use App\Services\Ai\AiManager;
+use App\Services\Ai\AiResult;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Throwable;
+use InvalidArgumentException;
 
 class EvaluasiAiService
 {
@@ -15,8 +15,18 @@ class EvaluasiAiService
      */
     private const MAKS_KARAKTER = 1800;
 
+    public function __construct(private readonly AiManager $manager) {}
+
     /**
-     * Buat draft catatan evaluasi wali kelas via Gemini.
+     * Label provider AI yang sedang aktif (untuk tooltip tombol di UI).
+     */
+    public function namaProvider(): string
+    {
+        return $this->manager->label();
+    }
+
+    /**
+     * Buat draft catatan evaluasi wali kelas lewat provider AI yang aktif.
      *
      * Nama siswa sengaja TIDAK dikirim ke API — catatan rapor memakai sebutan
      * "Ananda", jadi yang dikirim hanya nilai, kelas, dan semester.
@@ -26,94 +36,27 @@ class EvaluasiAiService
      */
     public function draftEvaluasi(Collection $nilai, ?float $rataRata, string $status, ?string $predikat, string $kelasNama, string $tahunAjaran): array
     {
-        $apiKey = config('services.gemini.api_key');
-
-        if (! is_string($apiKey) || $apiKey === '') {
-            return [
-                'sukses' => false,
-                'teks' => '',
-                'pesan' => 'API key Gemini belum dikonfigurasi. Tambahkan GEMINI_API_KEY di file .env.',
-            ];
-        }
-
-        $model = config('services.gemini.model', 'gemini-3.6-flash');
-
         try {
-            $response = Http::withHeaders(['x-goog-api-key' => $apiKey])
-                ->timeout(60)
-                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
-                    'contents' => [
-                        [
-                            'role' => 'user',
-                            'parts' => [['text' => $this->susunPrompt($nilai, $rataRata, $status, $predikat, $kelasNama, $tahunAjaran)]],
-                        ],
-                    ],
-                    'generationConfig' => [
-                        // Model 3.x menghitung thinking token ke maxOutputTokens — budget
-                        // kecil bikin teks terpotong di tengah kalimat. Thinking level
-                        // rendah cukup untuk task nulis evaluasi sekaligus mempercepat.
-                        'maxOutputTokens' => 4096,
-                        'thinkingConfig' => [
-                            'thinkingLevel' => 'low',
-                        ],
-                    ],
-                ]);
-        } catch (Throwable $e) {
-            Log::warning('Gemini evaluasi gagal: '.$e->getMessage());
-
-            return [
-                'sukses' => false,
-                'teks' => '',
-                'pesan' => 'Gagal menghubungi layanan AI. Periksa koneksi dan coba lagi.',
-            ];
+            $provider = $this->manager->provider();
+        } catch (InvalidArgumentException $e) {
+            return AiResult::gagal($e->getMessage())->keArray();
         }
 
-        if ($response->failed()) {
-            Log::warning('Gemini evaluasi HTTP '.$response->status().': '.mb_substr($response->body(), 0, 500));
+        $hasil = $provider->buatTeks(
+            $this->susunPrompt($nilai, $rataRata, $status, $predikat, $kelasNama, $tahunAjaran)
+        );
 
-            return [
-                'sukses' => false,
-                'teks' => '',
-                'pesan' => match ($response->status()) {
-                    429 => 'Kuota permintaan AI sudah habis untuk saat ini. Coba lagi nanti.',
-                    503 => 'Layanan AI sedang sibuk (permintaan melonjak). Coba lagi beberapa saat.',
-                    default => 'Gagal membuat evaluasi dengan AI (layanan menolak permintaan). Coba lagi nanti.',
-                },
-            ];
+        if (! $hasil->sukses) {
+            return $hasil->keArray();
         }
 
-        $json = $response->json();
-        $finishReason = data_get($json, 'candidates.0.finishReason');
-
-        if ($finishReason === 'MAX_TOKENS') {
-            Log::warning('Gemini evaluasi terpotong (MAX_TOKENS) pada model '.$model);
-
-            return [
-                'sukses' => false,
-                'teks' => '',
-                'pesan' => 'Draf AI terpotong di tengah jalan (batas token tercapai). Coba lagi.',
-            ];
-        }
-
-        $teks = trim((string) data_get($json, 'candidates.0.content.parts.0.text', ''));
-
-        if ($teks === '') {
-            return [
-                'sukses' => false,
-                'teks' => '',
-                'pesan' => 'AI tidak mengembalikan teks evaluasi. Coba lagi.',
-            ];
-        }
+        $teks = $hasil->teks;
 
         if (mb_strlen($teks) > self::MAKS_KARAKTER) {
             $teks = $this->potongDiAkhirKalimat($teks, self::MAKS_KARAKTER);
         }
 
-        return [
-            'sukses' => true,
-            'teks' => $teks,
-            'pesan' => 'Draft evaluasi berhasil dibuat. Periksa dan edit sebelum menyimpan.',
-        ];
+        return AiResult::ok($teks)->keArray();
     }
 
     /**

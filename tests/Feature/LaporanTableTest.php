@@ -18,6 +18,14 @@ class LaporanTableTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Pastikan test tidak terpengaruh AI_PROVIDER di .env mesin pengembang.
+        config(['services.ai.default' => 'gemini']);
+    }
+
     /**
      * @return array{0: TahunAjaran, 1: Kelas, 2: MataPelajaran}
      */
@@ -371,7 +379,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_mengisi_textarea(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         $this->fakeGemini('Ananda menunjukkan perkembangan yang baik. Terus tingkatkan kebiasaan belajar.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -397,7 +405,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_tanpa_api_key(): void
     {
-        config(['services.gemini.api_key' => null]);
+        config(['services.ai.providers.gemini.api_key' => null]);
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
 
@@ -416,7 +424,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_gagal_http(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         Http::fake([
             'generativelanguage.googleapis.com/*' => Http::response(['error' => 'quota'], 500),
         ]);
@@ -437,7 +445,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_terpotong_max_tokens(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         Http::fake([
             'generativelanguage.googleapis.com/*' => Http::response([
                 'candidates' => [
@@ -468,7 +476,7 @@ class LaporanTableTest extends TestCase
 
     public function test_draft_kepanjangan_dipotong_di_akhir_kalimat(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         $this->fakeGemini(str_repeat('Ananda menunjukkan perkembangan yang baik dalam belajar. ', 120));
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -490,7 +498,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_tanpa_siswa_terpilih(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         $this->fakeGemini('Teks apapun.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -508,7 +516,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_siswa_tanpa_nilai(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         $this->fakeGemini('Teks apapun.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -528,7 +536,7 @@ class LaporanTableTest extends TestCase
 
     public function test_prompt_ai_tidak_mengirim_nama_siswa(): void
     {
-        config(['services.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
         $this->fakeGemini('Ananda menunjukkan perkembangan yang baik.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
