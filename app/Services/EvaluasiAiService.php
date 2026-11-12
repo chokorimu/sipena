@@ -18,9 +18,10 @@ class EvaluasiAiService
     public function __construct(private readonly AiManager $manager) {}
 
     /**
-     * Label provider AI yang sedang aktif (untuk tooltip tombol di UI).
+     * Label provider AI yang sedang aktif (untuk tooltip tombol di UI), null kalau
+     * AI_LABEL tidak diisi.
      */
-    public function namaProvider(): string
+    public function namaProvider(): ?string
     {
         return $this->manager->label();
     }

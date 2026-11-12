@@ -172,12 +172,16 @@ new class extends Component
     }
 
     /**
-     * Label provider AI aktif, dipakai di tooltip tombol (mis. "Gemini", "Groq").
+     * Tooltip tombol AI; nama provider hanya disebut kalau AI_LABEL diisi.
      */
     #[Computed]
-    public function providerAi(): string
+    public function tooltipAi(): string
     {
-        return app(EvaluasiAiService::class)->namaProvider();
+        $label = app(EvaluasiAiService::class)->namaProvider();
+
+        return 'Buat draft evaluasi otomatis dengan AI'
+            .($label !== null ? " ({$label})" : '')
+            .' — bisa diedit sebelum disimpan';
     }
 
     /**
@@ -762,7 +766,7 @@ new class extends Component
                             <x-heroicon-m-check class="h-4 w-4 -ml-0.5" />
                             Simpan Evaluasi
                         </x-button>
-                        <x-button variant="secondary" size="md" wire:click="buatEvaluasiAi" wire:loading.attr="disabled" wire:target="buatEvaluasiAi" title="Buat draft evaluasi otomatis dengan AI ({{ $this->providerAi }}) — bisa diedit sebelum disimpan">
+                        <x-button variant="secondary" size="md" wire:click="buatEvaluasiAi" wire:loading.attr="disabled" wire:target="buatEvaluasiAi" title="{{ $this->tooltipAi }}">
                             <x-heroicon-m-sparkles class="h-4 w-4 -ml-0.5" />
                             <span wire:loading.remove wire:target="buatEvaluasiAi">Buat Evaluasi dengan AI</span>
                             <span wire:loading wire:target="buatEvaluasiAi">Membuat...</span>

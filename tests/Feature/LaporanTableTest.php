@@ -22,8 +22,13 @@ class LaporanTableTest extends TestCase
     {
         parent::setUp();
 
-        // Pastikan test tidak terpengaruh AI_PROVIDER di .env mesin pengembang.
-        config(['services.ai.default' => 'gemini']);
+        // Pastikan test tidak terpengaruh konfigurasi AI di .env mesin pengembang.
+        config([
+            'services.ai.driver' => 'gemini',
+            'services.ai.base_url' => 'https://generativelanguage.googleapis.com/v1beta',
+            'services.ai.model' => 'gemini-3.6-flash',
+            'services.ai.wajib_kunci' => true,
+        ]);
     }
 
     /**
@@ -377,9 +382,25 @@ class LaporanTableTest extends TestCase
             ->assertSee('Simpan Evaluasi');
     }
 
+    public function test_tooltip_tombol_ai_mengikuti_label_provider(): void
+    {
+        config(['services.ai.label' => 'Groq']);
+
+        [$tahun, $kelas, $mapel] = $this->siapkanData();
+
+        $siswa = $this->tambahSiswaDenganNilai($kelas, $tahun, $mapel, 'Siti Nurhaliza', 80, 90);
+
+        Livewire::test('laporan-table')
+            ->set('kelasId', (string) $kelas->id)
+            ->set('tahunId', (string) $tahun->id)
+            ->set('jenis', 'rapor-siswa')
+            ->set('siswaId', (string) $siswa->id)
+            ->assertSeeHtml('title="Buat draft evaluasi otomatis dengan AI (Groq) — bisa diedit sebelum disimpan"');
+    }
+
     public function test_buat_evaluasi_ai_mengisi_textarea(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         $this->fakeGemini('Ananda menunjukkan perkembangan yang baik. Terus tingkatkan kebiasaan belajar.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -405,7 +426,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_tanpa_api_key(): void
     {
-        config(['services.ai.providers.gemini.api_key' => null]);
+        config(['services.ai.api_key' => null]);
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
 
@@ -424,7 +445,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_gagal_http(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         Http::fake([
             'generativelanguage.googleapis.com/*' => Http::response(['error' => 'quota'], 500),
         ]);
@@ -445,7 +466,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_terpotong_max_tokens(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         Http::fake([
             'generativelanguage.googleapis.com/*' => Http::response([
                 'candidates' => [
@@ -476,7 +497,7 @@ class LaporanTableTest extends TestCase
 
     public function test_draft_kepanjangan_dipotong_di_akhir_kalimat(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         $this->fakeGemini(str_repeat('Ananda menunjukkan perkembangan yang baik dalam belajar. ', 120));
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -498,7 +519,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_tanpa_siswa_terpilih(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         $this->fakeGemini('Teks apapun.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -516,7 +537,7 @@ class LaporanTableTest extends TestCase
 
     public function test_buat_evaluasi_ai_siswa_tanpa_nilai(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         $this->fakeGemini('Teks apapun.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();
@@ -536,7 +557,7 @@ class LaporanTableTest extends TestCase
 
     public function test_prompt_ai_tidak_mengirim_nama_siswa(): void
     {
-        config(['services.ai.providers.gemini.api_key' => 'kunci-uji']);
+        config(['services.ai.api_key' => 'kunci-uji']);
         $this->fakeGemini('Ananda menunjukkan perkembangan yang baik.');
 
         [$tahun, $kelas, $mapel] = $this->siapkanData();

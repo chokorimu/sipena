@@ -19,6 +19,7 @@ final class GeminiProvider implements AiProvider
     public function __construct(
         private readonly ?string $apiKey,
         private readonly string $model,
+        private readonly string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta',
         private readonly int $timeout = 60,
         private readonly int $maxTokens = 4096,
     ) {}
@@ -31,13 +32,15 @@ final class GeminiProvider implements AiProvider
     public function buatTeks(string $prompt): AiResult
     {
         if ($this->apiKey === null || $this->apiKey === '') {
-            return AiResult::gagalKunci($this->label(), 'GEMINI_API_KEY');
+            return AiResult::gagalKunci($this->label(), 'AI_API_KEY');
         }
+
+        $url = rtrim($this->baseUrl, '/')."/models/{$this->model}:generateContent";
 
         try {
             $response = Http::withHeaders(['x-goog-api-key' => $this->apiKey])
                 ->timeout($this->timeout)
-                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent", [
+                ->post($url, [
                     'contents' => [
                         [
                             'role' => 'user',

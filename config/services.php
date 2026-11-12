@@ -37,103 +37,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Penyedia AI (evaluasi naratif rapor)
+    | AI (draft catatan evaluasi rapor)
     |--------------------------------------------------------------------------
     |
-    | Pilih penyedia aktif lewat AI_PROVIDER. Setiap entri punya `driver` yang
-    | menentukan format API-nya:
-    |   - gemini    : Google Gemini generateContent
-    |   - openai    : chat completions ala [OI] (dipakai juga oleh OpenRouter,
-    |                 Groq, DeepSeek, Mistral, xAI, dan Ollama lokal)
-    |   - anthropic : Claude Messages API
+    | Satu konfigurasi saja — atur base URL, model, dan API key sendiri. `driver`
+    | menentukan format request yang dipakai:
+    |   - openai    : POST {base_url}/chat/completions (format paling umum:
+    |                 [OI], OpenRouter, Groq, DeepSeek, Mistral, Ollama, LM Studio,
+    |                 vLLM, dan proxy lain yang kompatibel)
+    |   - gemini    : POST {base_url}/models/{model}:generateContent
+    |   - anthropic : POST {base_url}/messages
     |
-    | Menambah penyedia baru yang kompatibel chat completions cukup menambah
-    | entri di bawah dengan `driver` => 'openai'.
+    | `label` hanya untuk tooltip di UI; kalau kosong dipakai nama default driver.
+    | Set AI_WAJIB_KUNCI=false untuk endpoint lokal tanpa API key (Ollama/LM Studio).
     |
     */
 
     'ai' => [
-        'default' => env('AI_PROVIDER', 'gemini'),
+        'driver' => env('AI_DRIVER', 'openai'),
+        'label' => env('AI_LABEL'),
+        'base_url' => env('AI_BASE_URL', 'https://api.openai.com/v1'),
+        'api_key' => env('AI_API_KEY'),
+        'model' => env('AI_MODEL'),
         'timeout' => (int) env('AI_TIMEOUT', 60),
         'max_tokens' => (int) env('AI_MAX_TOKENS', 4096),
-
-        'providers' => [
-            'gemini' => [
-                'driver' => 'gemini',
-                'label' => 'Gemini',
-                'api_key' => env('GEMINI_API_KEY'),
-                'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
-            ],
-
-            'openai' => [
-                'driver' => 'openai',
-                'label' => '[OI]',
-                'api_key' => env('OPENAI_API_KEY'),
-                'env_key' => 'OPENAI_API_KEY',
-                'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
-                'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-            ],
-
-            'openrouter' => [
-                'driver' => 'openai',
-                'label' => 'OpenRouter',
-                'api_key' => env('OPENROUTER_API_KEY'),
-                'env_key' => 'OPENROUTER_API_KEY',
-                'model' => env('OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free'),
-                'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
-                'headers' => [
-                    'HTTP-Referer' => env('APP_URL', 'http://localhost'),
-                    'X-Title' => env('APP_NAME', 'SIPENA'),
-                ],
-            ],
-
-            'groq' => [
-                'driver' => 'openai',
-                'label' => 'Groq',
-                'api_key' => env('GROQ_API_KEY'),
-                'env_key' => 'GROQ_API_KEY',
-                'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
-                'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
-            ],
-
-            'deepseek' => [
-                'driver' => 'openai',
-                'label' => 'DeepSeek',
-                'api_key' => env('DEEPSEEK_API_KEY'),
-                'env_key' => 'DEEPSEEK_API_KEY',
-                'model' => env('DEEPSEEK_MODEL', 'deepseek-chat'),
-                'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
-            ],
-
-            'mistral' => [
-                'driver' => 'openai',
-                'label' => 'Mistral',
-                'api_key' => env('MISTRAL_API_KEY'),
-                'env_key' => 'MISTRAL_API_KEY',
-                'model' => env('MISTRAL_MODEL', 'mistral-small-latest'),
-                'base_url' => env('MISTRAL_BASE_URL', 'https://api.mistral.ai/v1'),
-            ],
-
-            'ollama' => [
-                'driver' => 'openai',
-                'label' => 'Ollama',
-                'api_key' => null,
-                'env_key' => 'OLLAMA_BASE_URL',
-                'model' => env('OLLAMA_MODEL', 'llama3.2'),
-                'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434/v1'),
-                // Ollama lokal tidak butuh API key.
-                'wajib_kunci' => false,
-            ],
-
-            'anthropic' => [
-                'driver' => 'anthropic',
-                'label' => 'Claude',
-                'api_key' => env('ANTHROPIC_API_KEY'),
-                'env_key' => 'ANTHROPIC_API_KEY',
-                'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
-                'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com/v1'),
-            ],
-        ],
+        'wajib_kunci' => (bool) env('AI_WAJIB_KUNCI', true),
     ],
 
 ];

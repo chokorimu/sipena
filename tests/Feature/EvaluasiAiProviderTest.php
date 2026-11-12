@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\MataPelajaran;
 use App\Models\Nilai;
+use App\Services\Ai\AiManager;
+use App\Services\Ai\AnthropicProvider;
+use App\Services\Ai\GeminiProvider;
+use App\Services\Ai\OpenAiProvider;
 use App\Services\EvaluasiAiService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -44,74 +48,26 @@ class EvaluasiAiProviderTest extends TestCase
         );
     }
 
-    public function test_provider_default_adalah_gemini(): void
+    /**
+     * @param  array<string, mixed>  $tambahan
+     */
+    private function konfigurasi(array $tambahan = []): void
     {
-        config([
-            'services.ai.default' => 'gemini',
-            'services.ai.providers.gemini.api_key' => 'kunci-uji',
-        ]);
-
-        Http::fake([
-            'generativelanguage.googleapis.com/*' => Http::response([
-                'candidates' => [
-                    ['content' => ['parts' => [['text' => 'Ananda berkembang baik.']]], 'finishReason' => 'STOP'],
-                ],
-            ], 200),
-        ]);
-
-        $hasil = $this->draft();
-
-        $this->assertTrue($hasil['sukses']);
-        $this->assertSame('Ananda berkembang baik.', $hasil['teks']);
-
-        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'generativelanguage.googleapis.com')
-            && $request->hasHeader('x-goog-api-key', 'kunci-uji')
-            && str_contains($request['contents'][0]['parts'][0]['text'], 'Matematika'));
+        config(array_merge([
+            'services.ai.driver' => 'openai',
+            'services.ai.label' => null,
+            'services.ai.base_url' => 'https://api.openai.com/v1',
+            'services.ai.api_key' => 'kunci-uji',
+            'services.ai.model' => 'gpt-4o-mini',
+            'services.ai.timeout' => 60,
+            'services.ai.max_tokens' => 4096,
+            'services.ai.wajib_kunci' => true,
+        ], $tambahan));
     }
 
-    public function test_gemini_3_mengirim_thinking_config(): void
+    public function test_driver_openai_memakai_chat_completions(): void
     {
-        config([
-            'services.ai.default' => 'gemini',
-            'services.ai.providers.gemini.api_key' => 'kunci-uji',
-            'services.ai.providers.gemini.model' => 'gemini-3.6-flash',
-        ]);
-
-        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
-            'candidates' => [['content' => ['parts' => [['text' => 'Baik.']]], 'finishReason' => 'STOP']],
-        ], 200)]);
-
-        $this->draft();
-
-        Http::assertSent(fn ($request): bool => ($request['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null) === 'low'
-            && $request['generationConfig']['maxOutputTokens'] === 4096);
-    }
-
-    public function test_gemini_25_tidak_mengirim_thinking_config(): void
-    {
-        // Model 2.5 memakai thinkingBudget, bukan thinkingLevel — mengirim
-        // thinkingConfig akan ditolak API dengan 400.
-        config([
-            'services.ai.default' => 'gemini',
-            'services.ai.providers.gemini.api_key' => 'kunci-uji',
-            'services.ai.providers.gemini.model' => 'gemini-2.5-flash',
-        ]);
-
-        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
-            'candidates' => [['content' => ['parts' => [['text' => 'Baik.']]], 'finishReason' => 'STOP']],
-        ], 200)]);
-
-        $this->draft();
-
-        Http::assertSent(fn ($request): bool => ! isset($request['generationConfig']['thinkingConfig']));
-    }
-
-    public function test_openai_memakai_chat_completions(): void
-    {
-        config([
-            'services.ai.default' => 'openai',
-            'services.ai.providers.openai.api_key' => 'sk-uji',
-        ]);
+        $this->konfigurasi();
 
         Http::fake([
             'api.openai.com/*' => Http::response([
@@ -127,32 +83,46 @@ class EvaluasiAiProviderTest extends TestCase
         $this->assertSame('Ananda menunjukkan kemajuan.', $hasil['teks']);
 
         Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/chat/completions')
-            && $request->hasHeader('Authorization', 'Bearer sk-uji')
+            && $request->hasHeader('Authorization', 'Bearer kunci-uji')
             && $request['model'] === 'gpt-4o-mini'
             && $request['max_tokens'] === 4096
             && str_contains($request['messages'][0]['content'], 'Matematika'));
     }
 
+    public function test_base_url_bisa_diarahkan_ke_endpoint_sendiri(): void
+    {
+        $this->konfigurasi([
+            'services.ai.base_url' => 'https://ai.contoh.id/v1/',
+            'services.ai.model' => 'model-lokal',
+        ]);
+
+        Http::fake(['ai.contoh.id/*' => Http::response([
+            'choices' => [['message' => ['content' => 'Baik.'], 'finish_reason' => 'stop']],
+        ], 200)]);
+
+        $hasil = $this->draft();
+
+        $this->assertTrue($hasil['sukses']);
+
+        // Trailing slash di base URL tidak boleh menghasilkan "//chat/completions".
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://ai.contoh.id/v1/chat/completions'
+            && $request['model'] === 'model-lokal');
+    }
+
     public function test_openai_tanpa_api_key_memberi_pesan_env(): void
     {
-        config([
-            'services.ai.default' => 'openai',
-            'services.ai.providers.openai.api_key' => null,
-        ]);
+        $this->konfigurasi(['services.ai.api_key' => null]);
 
         $hasil = $this->draft();
 
         $this->assertFalse($hasil['sukses']);
-        $this->assertStringContainsString('OPENAI_API_KEY', $hasil['pesan']);
+        $this->assertStringContainsString('AI_API_KEY', $hasil['pesan']);
         Http::assertNothingSent();
     }
 
     public function test_openai_terpotong_finish_reason_length(): void
     {
-        config([
-            'services.ai.default' => 'openai',
-            'services.ai.providers.openai.api_key' => 'sk-uji',
-        ]);
+        $this->konfigurasi();
 
         Http::fake([
             'api.openai.com/*' => Http::response([
@@ -169,31 +139,13 @@ class EvaluasiAiProviderTest extends TestCase
         $this->assertStringContainsString('terpotong', $hasil['pesan']);
     }
 
-    public function test_openrouter_mengirim_header_tambahan(): void
+    public function test_endpoint_lokal_bisa_tanpa_api_key(): void
     {
-        config([
-            'services.ai.default' => 'openrouter',
-            'services.ai.providers.openrouter.api_key' => 'or-uji',
-        ]);
-
-        Http::fake(['openrouter.ai/*' => Http::response([
-            'choices' => [['message' => ['content' => 'Baik.'], 'finish_reason' => 'stop']],
-        ], 200)]);
-
-        $hasil = $this->draft();
-
-        $this->assertTrue($hasil['sukses']);
-
-        Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer or-uji')
-            && $request->hasHeader('HTTP-Referer')
-            && $request->hasHeader('X-Title'));
-    }
-
-    public function test_ollama_jalan_tanpa_api_key(): void
-    {
-        config([
-            'services.ai.default' => 'ollama',
-            'services.ai.providers.ollama.api_key' => null,
+        $this->konfigurasi([
+            'services.ai.base_url' => 'http://localhost:11434/v1',
+            'services.ai.model' => 'llama3.2',
+            'services.ai.api_key' => null,
+            'services.ai.wajib_kunci' => false,
         ]);
 
         Http::fake(['localhost:11434/*' => Http::response([
@@ -203,16 +155,79 @@ class EvaluasiAiProviderTest extends TestCase
         $hasil = $this->draft();
 
         $this->assertTrue($hasil['sukses']);
-        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'localhost:11434/v1/chat/completions')
+        Http::assertSent(fn ($request): bool => $request->url() === 'http://localhost:11434/v1/chat/completions'
             && ! $request->hasHeader('Authorization'));
     }
 
-    public function test_anthropic_memakai_messages_api(): void
+    public function test_driver_gemini_memakai_generate_content(): void
     {
-        config([
-            'services.ai.default' => 'anthropic',
-            'services.ai.providers.anthropic.api_key' => 'sk-ant-uji',
-            'services.ai.providers.anthropic.model' => 'model-uji',
+        $this->konfigurasi([
+            'services.ai.driver' => 'gemini',
+            'services.ai.base_url' => 'https://generativelanguage.googleapis.com/v1beta',
+            'services.ai.model' => 'gemini-3.6-flash',
+        ]);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    ['content' => ['parts' => [['text' => 'Ananda berkembang baik.']]], 'finishReason' => 'STOP'],
+                ],
+            ], 200),
+        ]);
+
+        $hasil = $this->draft();
+
+        $this->assertTrue($hasil['sukses']);
+        $this->assertSame('Ananda berkembang baik.', $hasil['teks']);
+
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/models/gemini-3.6-flash:generateContent')
+            && $request->hasHeader('x-goog-api-key', 'kunci-uji')
+            && str_contains($request['contents'][0]['parts'][0]['text'], 'Matematika'));
+    }
+
+    public function test_gemini_3_mengirim_thinking_config(): void
+    {
+        $this->konfigurasi([
+            'services.ai.driver' => 'gemini',
+            'services.ai.base_url' => 'https://generativelanguage.googleapis.com/v1beta',
+            'services.ai.model' => 'gemini-3.6-flash',
+        ]);
+
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [['content' => ['parts' => [['text' => 'Baik.']]], 'finishReason' => 'STOP']],
+        ], 200)]);
+
+        $this->draft();
+
+        Http::assertSent(fn ($request): bool => ($request['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null) === 'low'
+            && $request['generationConfig']['maxOutputTokens'] === 4096);
+    }
+
+    public function test_gemini_25_tidak_mengirim_thinking_config(): void
+    {
+        // Model 2.5 memakai thinkingBudget, bukan thinkingLevel — mengirim
+        // thinkingConfig akan ditolak API dengan 400.
+        $this->konfigurasi([
+            'services.ai.driver' => 'gemini',
+            'services.ai.base_url' => 'https://generativelanguage.googleapis.com/v1beta',
+            'services.ai.model' => 'gemini-2.5-flash',
+        ]);
+
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [['content' => ['parts' => [['text' => 'Baik.']]], 'finishReason' => 'STOP']],
+        ], 200)]);
+
+        $this->draft();
+
+        Http::assertSent(fn ($request): bool => ! isset($request['generationConfig']['thinkingConfig']));
+    }
+
+    public function test_driver_anthropic_memakai_messages_api(): void
+    {
+        $this->konfigurasi([
+            'services.ai.driver' => 'anthropic',
+            'services.ai.base_url' => 'https://api.anthropic.com/v1',
+            'services.ai.model' => 'model-uji',
         ]);
 
         Http::fake(['api.anthropic.com/*' => Http::response([
@@ -226,7 +241,7 @@ class EvaluasiAiProviderTest extends TestCase
         $this->assertSame('Ananda tumbuh baik.', $hasil['teks']);
 
         Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/v1/messages')
-            && $request->hasHeader('x-api-key', 'sk-ant-uji')
+            && $request->hasHeader('x-api-key', 'kunci-uji')
             && $request->hasHeader('anthropic-version', '2023-06-01')
             && $request['model'] === 'model-uji'
             && str_contains($request['messages'][0]['content'], 'Matematika'));
@@ -234,10 +249,10 @@ class EvaluasiAiProviderTest extends TestCase
 
     public function test_anthropic_terpotong_max_tokens(): void
     {
-        config([
-            'services.ai.default' => 'anthropic',
-            'services.ai.providers.anthropic.api_key' => 'sk-ant-uji',
-            'services.ai.providers.anthropic.model' => 'model-uji',
+        $this->konfigurasi([
+            'services.ai.driver' => 'anthropic',
+            'services.ai.base_url' => 'https://api.anthropic.com/v1',
+            'services.ai.model' => 'model-uji',
         ]);
 
         Http::fake(['api.anthropic.com/*' => Http::response([
@@ -251,37 +266,33 @@ class EvaluasiAiProviderTest extends TestCase
         $this->assertStringContainsString('terpotong', $hasil['pesan']);
     }
 
-    public function test_anthropic_tanpa_model_memberi_pesan_jelas(): void
+    public function test_model_kosong_memberi_pesan_jelas(): void
     {
-        config([
-            'services.ai.default' => 'anthropic',
-            'services.ai.providers.anthropic.api_key' => 'sk-ant-uji',
-            'services.ai.providers.anthropic.model' => '',
-        ]);
+        $this->konfigurasi(['services.ai.model' => '']);
 
         $hasil = $this->draft();
 
         $this->assertFalse($hasil['sukses']);
-        $this->assertStringContainsString('ANTHROPIC_MODEL', $hasil['pesan']);
+        $this->assertStringContainsString('AI_MODEL', $hasil['pesan']);
         Http::assertNothingSent();
     }
 
-    public function test_provider_tidak_dikenal_memberi_pesan_jelas(): void
+    public function test_driver_tidak_dikenal_memberi_pesan_jelas(): void
     {
-        config(['services.ai.default' => 'entah']);
+        $this->konfigurasi(['services.ai.driver' => 'entah']);
 
         $hasil = $this->draft();
 
         $this->assertFalse($hasil['sukses']);
-        $this->assertStringContainsString("Provider AI 'entah' tidak dikenal", $hasil['pesan']);
+        $this->assertStringContainsString("Driver AI 'entah' tidak didukung", $hasil['pesan']);
         Http::assertNothingSent();
     }
 
     public function test_kunci_ditolak_memberi_pesan_jelas(): void
     {
-        config([
-            'services.ai.default' => 'groq',
-            'services.ai.providers.groq.api_key' => 'kunci-salah',
+        $this->konfigurasi([
+            'services.ai.base_url' => 'https://api.groq.com/openai/v1',
+            'services.ai.label' => 'Groq',
         ]);
 
         Http::fake(['api.groq.com/*' => Http::response(['error' => 'unauthorized'], 401)]);
@@ -292,25 +303,32 @@ class EvaluasiAiProviderTest extends TestCase
         $this->assertStringContainsString('ditolak', $hasil['pesan']);
     }
 
-    public function test_label_provider_dipakai_untuk_tooltip(): void
+    public function test_label_dipakai_untuk_tooltip_dan_bisa_dikosongkan(): void
     {
-        config([
-            'services.ai.default' => 'groq',
-            'services.ai.providers.groq.api_key' => 'kunci-uji',
-        ]);
-
+        $this->konfigurasi(['services.ai.label' => 'Groq']);
         $this->assertSame('Groq', app(EvaluasiAiService::class)->namaProvider());
 
-        config(['services.ai.default' => 'entah']);
-        $this->assertSame('AI', app(EvaluasiAiService::class)->namaProvider());
+        $this->konfigurasi(['services.ai.label' => '']);
+        $this->assertNull(app(EvaluasiAiService::class)->namaProvider());
+    }
+
+    public function test_manager_membangun_ketiga_driver(): void
+    {
+        $manager = app(AiManager::class);
+
+        $this->konfigurasi(['services.ai.driver' => 'openai']);
+        $this->assertInstanceOf(OpenAiProvider::class, $manager->provider());
+
+        $this->konfigurasi(['services.ai.driver' => 'gemini']);
+        $this->assertInstanceOf(GeminiProvider::class, $manager->provider());
+
+        $this->konfigurasi(['services.ai.driver' => 'anthropic']);
+        $this->assertInstanceOf(AnthropicProvider::class, $manager->provider());
     }
 
     public function test_draft_selalu_dipotong_di_akhir_kalimat(): void
     {
-        config([
-            'services.ai.default' => 'openai',
-            'services.ai.providers.openai.api_key' => 'sk-uji',
-        ]);
+        $this->konfigurasi();
 
         Http::fake(['api.openai.com/*' => Http::response([
             'choices' => [

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Anthropic Claude Messages API (`/v1/messages`).
+ * Anthropic Claude Messages API (`POST {base_url}/messages`).
  *
  * Formatnya berbeda dari chat completions: prompt masuk ke `messages[].content`,
  * hasil ada di `content[].text`, dan penanda terpotong berupa `stop_reason`
@@ -19,9 +19,9 @@ final class AnthropicProvider implements AiProvider
         private readonly ?string $apiKey,
         private readonly string $model,
         private readonly string $baseUrl = 'https://api.anthropic.com/v1',
-        private readonly string $envKey = 'ANTHROPIC_API_KEY',
         private readonly int $timeout = 60,
         private readonly int $maxTokens = 4096,
+        private readonly bool $wajibKunci = true,
     ) {}
 
     public function label(): string
@@ -31,13 +31,13 @@ final class AnthropicProvider implements AiProvider
 
     public function buatTeks(string $prompt): AiResult
     {
-        if ($this->apiKey === null || $this->apiKey === '') {
-            return AiResult::gagalKunci($this->label(), $this->envKey);
+        if ($this->wajibKunci && ($this->apiKey === null || $this->apiKey === '')) {
+            return AiResult::gagalKunci($this->label(), 'AI_API_KEY');
         }
 
         try {
             $response = Http::withHeaders([
-                'x-api-key' => $this->apiKey,
+                'x-api-key' => (string) $this->apiKey,
                 'anthropic-version' => '2023-06-01',
             ])
                 ->timeout($this->timeout)

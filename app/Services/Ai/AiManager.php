@@ -5,91 +5,82 @@ namespace App\Services\Ai;
 use InvalidArgumentException;
 
 /**
- * Memilih provider AI aktif berdasarkan `config('services.ai.*')`.
+ * Membangun provider AI dari satu blok konfigurasi `services.ai.*`.
  *
- * Provider dipilih lewat `AI_PROVIDER` di .env. Menambah penyedia baru yang
- * formatnya kompatibel chat completions cukup dilakukan di config — tidak perlu
- * kelas baru.
+ * Driver menentukan format API-nya, sedangkan base URL, model, dan API key
+ * diatur sendiri lewat .env (AI_DRIVER, AI_BASE_URL, AI_MODEL, AI_API_KEY).
  */
 final class AiManager
 {
     /**
-     * Nama provider aktif (key di `services.ai.providers`).
+     * Driver aktif (format API): openai | gemini | anthropic.
      */
-    public function nama(): string
+    public function driver(): string
     {
-        return (string) config('services.ai.default', 'gemini');
+        return (string) config('services.ai.driver', 'openai');
     }
 
     /**
-     * Label provider aktif untuk UI (jatuh ke "AI" kalau konfigurasi salah).
+     * Label untuk tooltip UI, atau null kalau tidak diisi (tooltip tanpa nama).
      */
-    public function label(): string
+    public function label(): ?string
     {
-        try {
-            return $this->provider()->label();
-        } catch (InvalidArgumentException) {
-            return 'AI';
-        }
+        $label = config('services.ai.label');
+
+        return is_string($label) && trim($label) !== '' ? trim($label) : null;
     }
 
     /**
      * Bangun instance provider sesuai konfigurasi.
      *
-     * @throws InvalidArgumentException kalau provider/driver/model tidak dikenal
+     * @throws InvalidArgumentException kalau driver tidak dikenal atau model kosong
      */
-    public function provider(?string $nama = null): AiProvider
+    public function provider(): AiProvider
     {
-        $nama ??= $this->nama();
-        $konfigurasi = config("services.ai.providers.{$nama}");
-
-        if (! is_array($konfigurasi)) {
-            throw new InvalidArgumentException(
-                "Provider AI '{$nama}' tidak dikenal. Periksa AI_PROVIDER di file .env."
-            );
-        }
-
-        $driver = (string) ($konfigurasi['driver'] ?? $nama);
-        $label = (string) ($konfigurasi['label'] ?? ucfirst($nama));
-        $model = (string) ($konfigurasi['model'] ?? '');
-        $apiKey = $this->teksAtauNull($konfigurasi['api_key'] ?? null);
-        $timeout = (int) config('services.ai.timeout', 60);
-        $maxTokens = (int) config('services.ai.max_tokens', 4096);
+        $driver = $this->driver();
+        $model = trim((string) config('services.ai.model'));
 
         if ($model === '') {
-            throw new InvalidArgumentException(
-                "Model AI untuk provider '{$nama}' belum dikonfigurasi. Tambahkan ".strtoupper($nama).'_MODEL di file .env.'
-            );
+            throw new InvalidArgumentException('Model AI belum dikonfigurasi. Tambahkan AI_MODEL di file .env.');
+        }
+
+        $apiKey = $this->teksAtauNull(config('services.ai.api_key'));
+        $baseUrl = rtrim((string) config('services.ai.base_url'), '/');
+        $timeout = (int) config('services.ai.timeout', 60);
+        $maxTokens = (int) config('services.ai.max_tokens', 4096);
+        $wajibKunci = (bool) config('services.ai.wajib_kunci', true);
+
+        if ($baseUrl === '') {
+            throw new InvalidArgumentException('Base URL AI belum dikonfigurasi. Tambahkan AI_BASE_URL di file .env.');
         }
 
         return match ($driver) {
             'gemini' => new GeminiProvider(
                 apiKey: $apiKey,
                 model: $model,
+                baseUrl: $baseUrl,
                 timeout: $timeout,
                 maxTokens: $maxTokens,
             ),
             'openai' => new OpenAiProvider(
-                nama: $label,
+                nama: $this->label() ?? 'AI',
                 apiKey: $apiKey,
                 model: $model,
-                baseUrl: (string) ($konfigurasi['base_url'] ?? 'https://api.openai.com/v1'),
-                envKey: (string) ($konfigurasi['env_key'] ?? 'API_KEY'),
+                baseUrl: $baseUrl,
                 timeout: $timeout,
                 maxTokens: $maxTokens,
-                headers: (array) ($konfigurasi['headers'] ?? []),
-                wajibKunci: (bool) ($konfigurasi['wajib_kunci'] ?? true),
+                wajibKunci: $wajibKunci,
             ),
             'anthropic' => new AnthropicProvider(
                 apiKey: $apiKey,
                 model: $model,
-                baseUrl: (string) ($konfigurasi['base_url'] ?? 'https://api.anthropic.com/v1'),
-                envKey: (string) ($konfigurasi['env_key'] ?? 'ANTHROPIC_API_KEY'),
+                baseUrl: $baseUrl,
                 timeout: $timeout,
                 maxTokens: $maxTokens,
+                wajibKunci: $wajibKunci,
             ),
             default => throw new InvalidArgumentException(
-                "Driver AI '{$driver}' tidak didukung. Periksa AI_PROVIDER di file .env."
+                "Driver AI '{$driver}' tidak didukung. Isi AI_DRIVER dengan openai, gemini, atau anthropic."
             ),
         };
     }

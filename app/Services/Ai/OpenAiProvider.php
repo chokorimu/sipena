@@ -7,26 +7,21 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Driver untuk penyedia yang memakai format chat completions ala OpenAI.
+ * Driver untuk endpoint berformat chat completions (`POST {base_url}/chat/completions`).
  *
- * Satu kelas ini melayani banyak penyedia (OpenAI, OpenRouter, Groq, DeepSeek,
- * Mistral, xAI, Ollama lokal, dan lainnya) — cukup beda `base_url`, `model`,
- * dan `api_key` di `config/services.php`.
+ * Satu kelas ini melayani penyedia apa pun yang kompatibel — [OI], OpenRouter,
+ * Groq, DeepSeek, Mistral, Ollama, LM Studio, vLLM — cukup beda base URL,
+ * model, dan API key di `.env`.
  */
 final class OpenAiProvider implements AiProvider
 {
-    /**
-     * @param  array<string, string>  $headers  Header tambahan (mis. HTTP-Referer untuk OpenRouter).
-     */
     public function __construct(
         private readonly string $nama,
         private readonly ?string $apiKey,
         private readonly string $model,
         private readonly string $baseUrl,
-        private readonly string $envKey = 'API_KEY',
         private readonly int $timeout = 60,
         private readonly int $maxTokens = 4096,
-        private readonly array $headers = [],
         private readonly bool $wajibKunci = true,
     ) {}
 
@@ -38,10 +33,10 @@ final class OpenAiProvider implements AiProvider
     public function buatTeks(string $prompt): AiResult
     {
         if ($this->wajibKunci && ($this->apiKey === null || $this->apiKey === '')) {
-            return AiResult::gagalKunci($this->label(), $this->envKey);
+            return AiResult::gagalKunci($this->label(), 'AI_API_KEY');
         }
 
-        $headers = $this->headers;
+        $headers = [];
 
         if ($this->apiKey !== null && $this->apiKey !== '') {
             $headers['Authorization'] = 'Bearer '.$this->apiKey;
