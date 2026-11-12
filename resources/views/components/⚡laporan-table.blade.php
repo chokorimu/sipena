@@ -791,7 +791,7 @@ new class extends Component
         <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
             <div class="px-5 py-4 border-b border-[#dfe6ef]">
                 <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">
-                    Sebaran Nilai{{ $mapelInfo !== null ? ' &mdash; '.$mapelInfo->nama_mapel : '' }}
+                    Sebaran Nilai{{ $mapelInfo !== null ? ' — '.$mapelInfo->nama_mapel : '' }}
                 </h3>
             </div>
             <div class="p-5 flex flex-col gap-4">
