@@ -18,49 +18,154 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class LaporanExportController extends Controller
 {
     /**
-     * Export laporan rekap kelas (statistik + ringkasan per mapel) sebagai CSV.
+     * Export laporan sebagai CSV sesuai jenis laporan yang sedang aktif
+     * (rekap-kelas, rapor-siswa, analisis-nilai).
+     *
      * Parameter kosong memakai default yang sama dengan halaman laporan.
      */
     public function export(Request $request): StreamedResponse
     {
+        $validated = $request->validate([
+            'jenis' => ['nullable', 'in:rekap-kelas,rapor-siswa,analisis-nilai'],
+            'kelas' => ['nullable', 'integer', 'exists:kelas,id'],
+            'tahun' => ['nullable', 'integer', 'exists:tahun_ajaran,id'],
+            'siswa' => ['nullable', 'integer', 'exists:siswa,id'],
+            'mapel' => ['nullable', 'integer', 'exists:mata_pelajaran,id'],
+        ]);
+
+        $jenis = $validated['jenis'] ?? 'rekap-kelas';
         $konteks = $this->konteks($request);
 
-        $namaFile = Str::slug("laporan-{$konteks['kelas']->nama_kelas}").'.csv';
+        [$namaFile, $baris] = match ($jenis) {
+            'rapor-siswa' => $this->barisRaporSiswa($request, $konteks),
+            'analisis-nilai' => $this->barisAnalisisNilai($request, $konteks),
+            default => $this->barisRekapKelas($konteks),
+        };
 
-        return response()->streamDownload(function () use ($konteks): void {
+        return response()->streamDownload(function () use ($baris): void {
             $handle = fopen('php://output', 'wb');
 
             // BOM UTF-8 supaya Excel Windows membaca karakter Indonesia dengan benar.
             fwrite($handle, "\xEF\xBB\xBF");
 
-            fputcsv($handle, ["Laporan Akademik - Kelas {$konteks['kelas']->nama_kelas}"]);
-            fputcsv($handle, ["Tahun Ajaran: {$konteks['tahun']->tahun_ajaran} Semester ".ucfirst($konteks['tahun']->semester)]);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Statistik', 'Jumlah']);
-            fputcsv($handle, ['Total Siswa', $konteks['statistik']['totalSiswa']]);
-            fputcsv($handle, ['Tuntas (rata-rata >= KKM '.Nilai::KKM.')', $konteks['statistik']['tuntas']]);
-            fputcsv($handle, ['Belum Tuntas', $konteks['statistik']['belumTuntas']]);
-            fputcsv($handle, ['Rata-rata Kelas', $konteks['statistik']['rataRata'] !== null ? number_format($konteks['statistik']['rataRata'], 1, ',', '.') : '-']);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Mata Pelajaran', 'Rata-rata', 'Tertinggi', 'Terendah', 'Tuntas', 'Belum Tuntas']);
-
-            foreach ($konteks['ringkasanMapel'] as $mapel) {
-                fputcsv($handle, [
-                    $mapel['mapel'],
-                    number_format($mapel['rata'], 1, ',', '.'),
-                    number_format($mapel['tertinggi'], 1, ',', '.'),
-                    number_format($mapel['terendah'], 1, ',', '.'),
-                    $mapel['tuntas'],
-                    $mapel['belum'],
-                ]);
+            foreach ($baris as $row) {
+                fputcsv($handle, $row);
             }
 
             fclose($handle);
         }, $namaFile, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * Baris CSV laporan rekap kelas (statistik + ringkasan per mapel).
+     *
+     * @param  array{kelas: Kelas, tahun: TahunAjaran, statistik: array{totalSiswa: int, tuntas: int, belumTuntas: int, rataRata: float|null}, ringkasanMapel: Collection<int, array{mapel: string, rata: float, tertinggi: float, terendah: float, tuntas: int, belum: int}>}  $konteks
+     * @return array{0: string, 1: array<int, array<int, mixed>>}
+     */
+    private function barisRekapKelas(array $konteks): array
+    {
+        $baris = [
+            ["Laporan Akademik - Kelas {$konteks['kelas']->nama_kelas}"],
+            ["Tahun Ajaran: {$konteks['tahun']->tahun_ajaran} Semester ".ucfirst($konteks['tahun']->semester)],
+            [],
+            ['Statistik', 'Jumlah'],
+            ['Total Siswa', $konteks['statistik']['totalSiswa']],
+            ['Tuntas (rata-rata >= KKM '.Nilai::KKM.')', $konteks['statistik']['tuntas']],
+            ['Belum Tuntas', $konteks['statistik']['belumTuntas']],
+            ['Rata-rata Kelas', $konteks['statistik']['rataRata'] !== null ? number_format($konteks['statistik']['rataRata'], 1, ',', '.') : '-'],
+            [],
+            ['Mata Pelajaran', 'Rata-rata', 'Tertinggi', 'Terendah', 'Tuntas', 'Belum Tuntas'],
+        ];
+
+        foreach ($konteks['ringkasanMapel'] as $mapel) {
+            $baris[] = [
+                $mapel['mapel'],
+                number_format($mapel['rata'], 1, ',', '.'),
+                number_format($mapel['tertinggi'], 1, ',', '.'),
+                number_format($mapel['terendah'], 1, ',', '.'),
+                $mapel['tuntas'],
+                $mapel['belum'],
+            ];
+        }
+
+        return [Str::slug("laporan-rekap-kelas-{$konteks['kelas']->nama_kelas}").'.csv', $baris];
+    }
+
+    /**
+     * Baris CSV rapor satu siswa (nilai per mata pelajaran).
+     *
+     * @param  array{kelas: Kelas, tahun: TahunAjaran}  $konteks
+     * @return array{0: string, 1: array<int, array<int, mixed>>}
+     */
+    private function barisRaporSiswa(Request $request, array $konteks): array
+    {
+        $siswa = $this->siswaRapor($request, $konteks);
+        $rapor = $this->raporSiswa($siswa, $konteks['tahun']->id);
+
+        $baris = [
+            ["Rapor Siswa - {$siswa->nama}"],
+            ["NISN: {$siswa->nisn}"],
+            ["Kelas: {$konteks['kelas']->nama_kelas}"],
+            ["Tahun Ajaran: {$konteks['tahun']->tahun_ajaran} Semester ".ucfirst($konteks['tahun']->semester)],
+            [],
+            ['Mata Pelajaran', 'Formatif', 'Sumatif', 'Nilai Akhir', 'Predikat', 'Keterangan'],
+        ];
+
+        foreach ($rapor['nilai'] as $nilai) {
+            $baris[] = [
+                $nilai->mataPelajaran->nama_mapel,
+                number_format((float) $nilai->formatif, 1, ',', '.'),
+                number_format((float) $nilai->sumatif, 1, ',', '.'),
+                number_format((float) $nilai->nilai_akhir, 1, ',', '.'),
+                $nilai->predikat() ?? '',
+                $nilai->status_kelulusan ?? '',
+            ];
+        }
+
+        $baris[] = [
+            'Rata-rata',
+            '',
+            '',
+            $rapor['rataRata'] !== null ? number_format($rapor['rataRata'], 1, ',', '.') : '-',
+            $rapor['predikat'] ?? '-',
+            $rapor['status'],
+        ];
+
+        return [Str::slug("rapor-{$siswa->nama}-{$konteks['kelas']->nama_kelas}").'.csv', $baris];
+    }
+
+    /**
+     * Baris CSV analisis nilai (sebaran per mapel + siswa perlu perhatian).
+     *
+     * @param  array{kelas: Kelas, tahun: TahunAjaran, nilaiKelas: Collection<int, Nilai>}  $konteks
+     * @return array{0: string, 1: array<int, array<int, mixed>>}
+     */
+    private function barisAnalisisNilai(Request $request, array $konteks): array
+    {
+        $mapel = $this->mapelAnalisis($request);
+
+        $baris = [
+            ["Analisis Nilai - Kelas {$konteks['kelas']->nama_kelas}"],
+            ["Tahun Ajaran: {$konteks['tahun']->tahun_ajaran} Semester ".ucfirst($konteks['tahun']->semester)],
+            [],
+            ["Sebaran Nilai - {$mapel->nama_mapel}"],
+            ['Rentang Nilai', 'Jumlah Siswa', 'Persentase'],
+        ];
+
+        foreach ($this->sebaranNilai($konteks['nilaiKelas'], (string) $mapel->id) as $item) {
+            $baris[] = [$item['label'], $item['jumlah'], $item['persen'].'%'];
+        }
+
+        $baris[] = [];
+        $baris[] = ['Siswa Perlu Perhatian (rata-rata < KKM '.Nilai::KKM.')', 'NISN', 'Rata-rata'];
+
+        foreach ($this->siswaPerhatian($konteks['nilaiKelas']) as $item) {
+            $baris[] = [$item['siswa']->nama, $item['siswa']->nisn, number_format($item['rata'], 1, ',', '.')];
+        }
+
+        return [Str::slug("analisis-nilai-{$konteks['kelas']->nama_kelas}").'.csv', $baris];
     }
 
     /**
@@ -100,7 +205,6 @@ class LaporanExportController extends Controller
             $namaFile .= '-'.Str::slug($siswa->nama);
         } elseif ($jenis === 'analisis-nilai') {
             $mapel = $this->mapelAnalisis($request);
-            $data['analisisMapel'] = $this->analisisMapel($konteks['nilaiKelas']);
             $data['sebaranNilai'] = $this->sebaranNilai($konteks['nilaiKelas'], (string) $mapel->id);
             $data['mapelNama'] = $mapel->nama_mapel;
             $data['siswaPerhatian'] = $this->siswaPerhatian($konteks['nilaiKelas']);
@@ -299,28 +403,6 @@ class LaporanExportController extends Controller
             'status' => $rataRata !== null && $rataRata >= Nilai::KKM ? 'Tuntas' : 'Belum Tuntas',
             'predikat' => $predikat,
         ];
-    }
-
-    /**
-     * Rata-rata per mata pelajaran, urut dari tertinggi (perbandingan).
-     *
-     * @return Collection<int, array{mapel: string, rata: float, jumlah: int}>
-     */
-    private function analisisMapel(Collection $nilaiKelas): Collection
-    {
-        return $nilaiKelas
-            ->groupBy('mapel_id')
-            ->map(function ($nilaiMapel): array {
-                $nilaiAkhir = $nilaiMapel->pluck('nilai_akhir')->map(fn ($nilai): float => (float) $nilai);
-
-                return [
-                    'mapel' => $nilaiMapel->first()->mataPelajaran->nama_mapel,
-                    'rata' => round($nilaiAkhir->avg(), 1),
-                    'jumlah' => $nilaiAkhir->count(),
-                ];
-            })
-            ->sortByDesc('rata')
-            ->values();
     }
 
     /**

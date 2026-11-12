@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#f3f6fa] font-sans text-[#1a2233] antialiased">
-    <div class="flex min-h-screen p-4 gap-4">
+    <div class="flex min-h-screen p-4 gap-4 print:block print:p-0 print:gap-0">
         {{-- Sidebar --}}
         <x-sidebar>
             <x-sidebar-item label="Dashboard" route="dashboard" :active="request()->is('/')">
@@ -65,9 +65,9 @@
         </x-sidebar>
 
         {{-- Main Content --}}
-        <div class="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
+        <div class="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden print:overflow-visible">
             @yield('topbar')
-            <main class="flex-1 overflow-y-auto">
+            <main class="flex-1 overflow-y-auto print:overflow-visible">
                 @yield('content')
             </main>
         </div>

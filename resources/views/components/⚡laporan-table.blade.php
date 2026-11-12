@@ -376,14 +376,6 @@ new class extends Component
             ];
         }
 
-        if ($statistik['belumTuntas'] > 0) {
-            $catatan[] = [
-                'tipe' => 'warning',
-                'judul' => 'Remedial Diperlukan',
-                'isi' => "{$statistik['belumTuntas']} siswa memiliki rata-rata di bawah KKM dan memerlukan program remedial.",
-            ];
-        }
-
         return $catatan;
     }
 
@@ -513,29 +505,6 @@ new class extends Component
     }
 
     /**
-     * Rata-rata per mata pelajaran, urut dari tertinggi (perbandingan).
-     *
-     * @return \Illuminate\Support\Collection<int, array{mapel: string, rata: float, jumlah: int}>
-     */
-    #[Computed]
-    public function analisisMapel()
-    {
-        return $this->nilaiKelas
-            ->groupBy('mapel_id')
-            ->map(function ($nilaiMapel): array {
-                $nilaiAkhir = $nilaiMapel->pluck('nilai_akhir')->map(fn ($nilai): float => (float) $nilai);
-
-                return [
-                    'mapel' => $nilaiMapel->first()->mataPelajaran->nama_mapel,
-                    'rata' => round($nilaiAkhir->avg(), 1),
-                    'jumlah' => $nilaiAkhir->count(),
-                ];
-            })
-            ->sortByDesc('rata')
-            ->values();
-    }
-
-    /**
      * Sebaran nilai (histogram 5 rentang) untuk mata pelajaran terpilih.
      *
      * @return array<int, array{label: string, jumlah: int, persen: int, variant: string}>
@@ -604,7 +573,7 @@ new class extends Component
         @php
             $pesanStyle = $this->pesanKelas();
         @endphp
-        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border {{ $pesanStyle['bg'] }} {{ $pesanStyle['border'] }}">
+        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] border print:hidden {{ $pesanStyle['bg'] }} {{ $pesanStyle['border'] }}">
             <x-icon :name="'heroicon-m-'.$pesanStyle['icon']" class="h-5 w-5 shrink-0 {{ $pesanStyle['text'] }}" />
             <p class="text-[13px] leading-[1.45] font-medium {{ $pesanStyle['text'] }}">
                 {{ $pesan }}
@@ -613,7 +582,7 @@ new class extends Component
     @endif
 
     {{-- Filter Bar --}}
-    <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+    <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3 print:hidden">
         <div class="flex-1 w-full sm:w-auto">
             <x-select name="kelas_laporan" label="Kelas" wire:model.live="kelasId">
                 <option value="">Pilih Kelas</option>
@@ -645,7 +614,7 @@ new class extends Component
         @endphp
 
         {{-- Pilih Siswa --}}
-        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3 print:hidden">
             <div class="flex-1 w-full sm:w-auto">
                 <x-select name="siswa_rapor" label="Pilih Siswa" wire:model.live="siswaId">
                     <option value="">Pilih Siswa</option>
@@ -779,7 +748,7 @@ new class extends Component
                             <p class="text-[12px] leading-[1.45] text-[#c13e45]">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 print:hidden">
                         <x-button variant="primary" size="md" wire:click="simpanEvaluasi" wire:loading.attr="disabled" wire:target="simpanEvaluasi">
                             <x-heroicon-m-check class="h-4 w-4 -ml-0.5" />
                             Simpan Evaluasi
@@ -794,7 +763,7 @@ new class extends Component
             </div>
 
             {{-- Aksi rapor --}}
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 print:hidden">
                 <x-button variant="secondary" size="md" onclick="window.print()">
                     <x-heroicon-m-printer class="h-4 w-4 -ml-0.5" />
                     Cetak Rapor
@@ -807,7 +776,7 @@ new class extends Component
         @endphp
 
         {{-- Pilih Mata Pelajaran untuk sebaran nilai --}}
-        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+        <div class="flex flex-col sm:flex-row items-start sm:items-end gap-3 print:hidden">
             <div class="flex-1 w-full sm:w-auto">
                 <x-select name="mapel_analisis" label="Mata Pelajaran (Sebaran Nilai)" wire:model.live="mapelAnalisis">
                     <option value="">Pilih Mata Pelajaran</option>
@@ -818,55 +787,27 @@ new class extends Component
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {{-- Perbandingan rata-rata per mata pelajaran --}}
-            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
-                <div class="px-5 py-4 border-b border-[#dfe6ef]">
-                    <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">Perbandingan Rata-rata per Mata Pelajaran</h3>
-                </div>
-                <div class="p-5 flex flex-col gap-4">
-                    @forelse ($this->analisisMapel as $item)
-                        <div class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['mapel'] }}</span>
-                                <span class="text-[13px] leading-[1.45] text-[#66758c]">{{ number_format($item['rata'], 1) }} ({{ $item['jumlah'] }} nilai)</span>
-                            </div>
-                            <x-progress-bar
-                                :value="$item['rata']"
-                                :variant="$item['rata'] >= $this->kkm ? 'success' : 'danger'"
-                                size="sm"
-                            />
-                        </div>
-                    @empty
-                        <p class="text-[13px] text-[#96a2b4] text-center py-6">
-                            Belum ada nilai yang tercatat untuk kelas dan tahun ajaran terpilih.
-                        </p>
-                    @endforelse
-                </div>
+        {{-- Sebaran nilai mata pelajaran terpilih --}}
+        <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
+            <div class="px-5 py-4 border-b border-[#dfe6ef]">
+                <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">
+                    Sebaran Nilai{{ $mapelInfo !== null ? ' &mdash; '.$mapelInfo->nama_mapel : '' }}
+                </h3>
             </div>
-
-            {{-- Sebaran nilai mata pelajaran terpilih --}}
-            <div class="bg-white rounded-[12px] shadow-sm border border-[#dfe6ef]">
-                <div class="px-5 py-4 border-b border-[#dfe6ef]">
-                    <h3 class="text-[16px] font-semibold leading-[1.4] text-[#1a2233]">
-                        Sebaran Nilai{{ $mapelInfo !== null ? ' &mdash; '.$mapelInfo->nama_mapel : '' }}
-                    </h3>
-                </div>
-                <div class="p-5 flex flex-col gap-4">
-                    @foreach ($this->sebaranNilai as $item)
-                        <div class="flex flex-col gap-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['label'] }}</span>
-                                <span class="text-[13px] leading-[1.45] text-[#66758c]">{{ $item['jumlah'] }} siswa ({{ $item['persen'] }}%)</span>
-                            </div>
-                            <x-progress-bar
-                                :value="$item['persen']"
-                                :variant="$item['variant']"
-                                size="sm"
-                            />
+            <div class="p-5 flex flex-col gap-4">
+                @foreach ($this->sebaranNilai as $item)
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[13px] leading-[1.45] text-[#1a2233] font-medium">{{ $item['label'] }}</span>
+                            <span class="text-[13px] leading-[1.45] text-[#66758c]">{{ $item['jumlah'] }} siswa ({{ $item['persen'] }}%)</span>
                         </div>
-                    @endforeach
-                </div>
+                        <x-progress-bar
+                            :value="$item['persen']"
+                            :variant="$item['variant']"
+                            size="sm"
+                        />
+                    </div>
+                @endforeach
             </div>
         </div>
 

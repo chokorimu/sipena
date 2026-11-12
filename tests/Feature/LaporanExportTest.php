@@ -76,11 +76,80 @@ class LaporanExportTest extends TestCase
         $this->assertStringContainsString('83,0', $content);
     }
 
+    public function test_export_csv_rapor_siswa_mengikuti_jenis(): void
+    {
+        $tahun = TahunAjaran::factory()->create(['tahun_ajaran' => '2024/2025', 'semester' => 'ganjil']);
+        $kelas = Kelas::factory()->create(['nama_kelas' => 'VII-A']);
+        $mapel = MataPelajaran::factory()->create(['nama_mapel' => 'Matematika']);
+
+        $siswa = Siswa::factory()->create(['nama' => 'Ahmad Fauzi']);
+        $siswa->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $siswa->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 80,
+            'sumatif' => 90,
+        ]);
+
+        $response = $this->actingAs(User::factory()->create())
+            ->get("/laporan/export?jenis=rapor-siswa&kelas={$kelas->id}&tahun={$tahun->id}&siswa={$siswa->id}");
+
+        $response->assertOk();
+
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('Rapor Siswa - Ahmad Fauzi', $content);
+        $this->assertStringContainsString('Matematika', $content);
+        $this->assertStringContainsString('83,0', $content);
+        // Bukan lagi rekap kelas yang diexport saat jenis = rapor-siswa.
+        $this->assertStringNotContainsString('Laporan Akademik - Kelas', $content);
+    }
+
+    public function test_export_csv_analisis_nilai_mengikuti_jenis(): void
+    {
+        $tahun = TahunAjaran::factory()->create(['tahun_ajaran' => '2024/2025', 'semester' => 'ganjil']);
+        $kelas = Kelas::factory()->create(['nama_kelas' => 'VII-A']);
+        $mapel = MataPelajaran::factory()->create(['nama_mapel' => 'Matematika']);
+
+        $siswa = Siswa::factory()->create(['nama' => 'Ahmad Fauzi']);
+        $siswa->kelas()->attach($kelas->id, ['tahun_id' => $tahun->id]);
+
+        Nilai::create([
+            'siswa_id' => $siswa->id,
+            'mapel_id' => $mapel->id,
+            'tahun_id' => $tahun->id,
+            'formatif' => 50,
+            'sumatif' => 50,
+        ]);
+
+        $response = $this->actingAs(User::factory()->create())
+            ->get("/laporan/export?jenis=analisis-nilai&kelas={$kelas->id}&tahun={$tahun->id}&mapel={$mapel->id}");
+
+        $response->assertOk();
+
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('Analisis Nilai - Kelas VII-A', $content);
+        $this->assertStringContainsString('Sebaran Nilai - Matematika', $content);
+        // Nilai 50 di bawah KKM → masuk daftar siswa perlu perhatian.
+        $this->assertStringContainsString('Siswa Perlu Perhatian', $content);
+        $this->assertStringContainsString('Ahmad Fauzi', $content);
+    }
+
     public function test_export_csv_menolak_parameter_tidak_valid(): void
     {
         $this->actingAs(User::factory()->create())
             ->get('/laporan/export?kelas=999999')
             ->assertSessionHasErrors('kelas');
+    }
+
+    public function test_export_csv_menolak_jenis_tidak_dikenal(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/laporan/export?jenis=entah')
+            ->assertSessionHasErrors('jenis');
     }
 
     public function test_tamu_tidak_bisa_export(): void

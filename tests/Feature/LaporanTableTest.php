@@ -127,9 +127,10 @@ class LaporanTableTest extends TestCase
             ->set('kelasId', (string) $kelas->id)
             ->set('tahunId', (string) $tahun->id)
             ->assertSee('Catatan')
-            ->assertSee('Remedial Diperlukan')
             // 1 dari 2 siswa tuntas → 50% < 75% → peringatan
-            ->assertSee('Pencapaian KKM Perlu Perhatian');
+            ->assertSee('Pencapaian KKM Perlu Perhatian')
+            // Catatan tidak lagi menduplikasi stat card "Belum Tuntas".
+            ->assertDontSee('Remedial Diperlukan');
     }
 
     public function test_rapor_siswa_tampil_nilai_per_mapel(): void
@@ -196,7 +197,7 @@ class LaporanTableTest extends TestCase
             ->assertSet('siswaId', '');
     }
 
-    public function test_analisis_nilai_tampil_perbandingan_dan_sebaran(): void
+    public function test_analisis_nilai_tampil_sebaran_dan_siswa_perhatian(): void
     {
         [$tahun, $kelas, $mapel] = $this->siapkanData();
 
@@ -207,9 +208,11 @@ class LaporanTableTest extends TestCase
             ->set('kelasId', (string) $kelas->id)
             ->set('tahunId', (string) $tahun->id)
             ->set('jenis', 'analisis-nilai')
-            ->assertSee('Perbandingan Rata-rata per Mata Pelajaran')
             ->assertSee('Sebaran Nilai')
-            ->assertSee('Siswa Perlu Perhatian');
+            ->assertSee('Siswa Perlu Perhatian')
+            // Perbandingan rata-rata per mapel sudah dipindah ke Rekap Kelas
+            // (tabel "Ringkasan Nilai per Mata Pelajaran"), jadi tidak diulang di sini.
+            ->assertDontSee('Perbandingan Rata-rata per Mata Pelajaran');
     }
 
     public function test_siswa_perhatian_hanya_di_bawah_kkm(): void
