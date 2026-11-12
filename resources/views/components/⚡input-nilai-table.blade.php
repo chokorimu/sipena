@@ -185,24 +185,6 @@ new class extends Component
             ->get()
             ->keyBy('siswa_id');
     }
-
-    #[Computed]
-    public function kelasTerpilih(): ?Kelas
-    {
-        return Kelas::query()->find($this->kelasId);
-    }
-
-    #[Computed]
-    public function mapelTerpilih(): ?MataPelajaran
-    {
-        return MataPelajaran::query()->find($this->mapelId);
-    }
-
-    #[Computed]
-    public function tahunTerpilih(): ?TahunAjaran
-    {
-        return TahunAjaran::query()->find($this->tahunId);
-    }
 };
 ?>
 
@@ -233,9 +215,6 @@ new class extends Component
                 @endforeach
             </x-select>
         </div>
-        <x-button variant="primary" size="md" wire:click="loadNilai">
-            Tampilkan
-        </x-button>
     </div>
 
     {{-- Pesan feedback --}}
@@ -244,16 +223,6 @@ new class extends Component
             <x-icon :name="'heroicon-m-'.($pesanTipe === 'success' ? 'check-circle' : 'information-circle')" class="h-5 w-5 shrink-0 {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}" />
             <p class="text-[13px] leading-[1.45] font-medium {{ $pesanTipe === 'success' ? 'text-[#15803d]' : 'text-[#3b5998]' }}">
                 {{ $pesan }}
-            </p>
-        </div>
-    @endif
-
-    {{-- Info Alert --}}
-    @if ($this->kelasTerpilih && $this->mapelTerpilih && $this->tahunTerpilih)
-        <div class="flex items-center gap-3 px-4 py-3 rounded-[8px] bg-[#f0f4ff] border border-[#d0d9f0]">
-            <x-heroicon-m-information-circle class="h-5 w-5 text-[#3b5998] shrink-0" />
-            <p class="text-[13px] leading-[1.45] text-[#3b5998] font-medium">
-                {{ $this->kelasTerpilih->nama_kelas }} &bull; {{ $this->mapelTerpilih->nama_mapel }} &bull; {{ $this->tahunTerpilih->tahun_ajaran }} Semester {{ ucfirst($this->tahunTerpilih->semester) }}
             </p>
         </div>
     @endif

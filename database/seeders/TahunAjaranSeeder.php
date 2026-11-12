@@ -17,6 +17,10 @@ class TahunAjaranSeeder extends Seeder
             ['tahun_ajaran' => '2023/2024', 'semester' => 'genap'],
             ['tahun_ajaran' => '2024/2025', 'semester' => 'ganjil'],
             ['tahun_ajaran' => '2024/2025', 'semester' => 'genap'],
+            ['tahun_ajaran' => '2025/2026', 'semester' => 'ganjil'],
+            ['tahun_ajaran' => '2025/2026', 'semester' => 'genap'],
+            ['tahun_ajaran' => '2026/2027', 'semester' => 'ganjil'],
+            ['tahun_ajaran' => '2026/2027', 'semester' => 'genap'],
         ];
 
         foreach ($tahun as $data) {
