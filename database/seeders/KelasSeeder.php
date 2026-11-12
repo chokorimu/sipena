@@ -28,7 +28,9 @@ class KelasSeeder extends Seeder
         foreach ($kelas as $data) {
             Kelas::create([
                 ...$data,
-                'wali_kelas_id' => $guru->random()->id,
+                // Wali kelas opsional: seeder ini harus tetap jalan walau
+                // tabel guru belum di-seed.
+                'wali_kelas_id' => $guru->isNotEmpty() ? $guru->random()->id : null,
             ]);
         }
     }
