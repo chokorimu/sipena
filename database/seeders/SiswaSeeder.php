@@ -8,10 +8,15 @@ use Illuminate\Database\Seeder;
 class SiswaSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed data siswa contoh. Dilewati kalau tabel siswa sudah terisi, supaya
+     * aman dijalankan berulang (idempotent).
      */
     public function run(): void
     {
+        if (Siswa::query()->exists()) {
+            return;
+        }
+
         Siswa::factory(40)->create();
     }
 }

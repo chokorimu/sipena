@@ -38,6 +38,7 @@ School administration dashboard (Sistem Penilaian) for MTs Negeri Ambon — stud
 - Icons: `<x-heroicon-m-*>` (mini/solid) and `<x-heroicon-o-*>` (outline).
 - PHP style: curly braces always, constructor property promotion, explicit return types and param type hints, TitleCase enum keys, PHPDoc over inline comments.
 - Create files with `php artisan make:*`; when creating models, also create factories/seeders.
+- Seeders are **idempotent** — `php artisan db:seed` can be run repeatedly without duplicating rows (`firstOrCreate`/`updateOrCreate`, plus count guards in `GuruSeeder`/`SiswaSeeder`). `DatabaseSeeder` calls the full demo chain in dependency order (Admin → Guru → MataPelajaran → TahunAjaran → Kelas → Siswa → KelasSiswa → Nilai → Evaluasi → Jadwal); `ReferensiSeeder` seeds only the reference data (mapel + tahun ajaran + kelas) with no demo rows. `KelasSeeder` tolerates an empty `guru` table (`wali_kelas_id` = null). `DatabaseSeederFull.php` is dead code — PSR-4 maps `Database\Seeders\DatabaseSeeder` to `DatabaseSeeder.php`.
 - Do not add new top-level directories or change composer/npm dependencies without approval.
 - Do not create documentation files unless explicitly requested.
 

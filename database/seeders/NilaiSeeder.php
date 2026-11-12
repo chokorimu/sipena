@@ -11,7 +11,10 @@ use Illuminate\Database\Seeder;
 class NilaiSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed nilai contoh untuk tahun ajaran 2024/2025 ganjil.
+     *
+     * Aman dijalankan berulang: nilai yang sudah ada tidak ditimpa, karena
+     * kolom (siswa_id, mapel_id, tahun_id) bersifat unik.
      */
     public function run(): void
     {
@@ -23,13 +26,17 @@ class NilaiSeeder extends Seeder
 
         Siswa::all()->each(function (Siswa $siswa) use ($mapel, $tahun): void {
             $mapel->each(function (MataPelajaran $m) use ($siswa, $tahun): void {
-                Nilai::create([
-                    'siswa_id' => $siswa->id,
-                    'mapel_id' => $m->id,
-                    'tahun_id' => $tahun->id,
-                    'formatif' => random_int(65, 95),
-                    'sumatif' => random_int(65, 95),
-                ]);
+                Nilai::firstOrCreate(
+                    [
+                        'siswa_id' => $siswa->id,
+                        'mapel_id' => $m->id,
+                        'tahun_id' => $tahun->id,
+                    ],
+                    [
+                        'formatif' => random_int(65, 95),
+                        'sumatif' => random_int(65, 95),
+                    ],
+                );
             });
         });
     }

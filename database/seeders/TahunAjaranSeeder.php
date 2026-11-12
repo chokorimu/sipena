@@ -8,7 +8,8 @@ use Illuminate\Database\Seeder;
 class TahunAjaranSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed tahun ajaran. Aman dijalankan berulang (idempotent) — kombinasi
+     * tahun_ajaran + semester sudah unik di database.
      */
     public function run(): void
     {
@@ -19,7 +20,7 @@ class TahunAjaranSeeder extends Seeder
         ];
 
         foreach ($tahun as $data) {
-            TahunAjaran::create($data);
+            TahunAjaran::firstOrCreate($data);
         }
     }
 }

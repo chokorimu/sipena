@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 class MataPelajaranSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed daftar mata pelajaran. Aman dijalankan berulang (idempotent).
      */
     public function run(): void
     {
@@ -24,7 +24,7 @@ class MataPelajaranSeeder extends Seeder
         ];
 
         foreach ($mapel as $nama) {
-            MataPelajaran::create(['nama_mapel' => $nama]);
+            MataPelajaran::firstOrCreate(['nama_mapel' => $nama]);
         }
     }
 }
